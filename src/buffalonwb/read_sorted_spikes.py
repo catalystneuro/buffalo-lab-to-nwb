@@ -1,19 +1,12 @@
 import sys
 from pprint import pprint
 from nexfile import nexfile
+from .exceptions import InconsistentInputException, UnsupportedInputException
 
 
-class InconsistentInputException(Exception):
-    pass
-
-
-class UnsupportedInputException(Exception):
-    pass
-
-
-def add_units():
+def add_units(nwbfile, nex_file_name):
     reader = nexfile.Reader(useNumpy=True)
-    file_data = reader.ReadNexFile(sys.argv[1])
+    file_data = reader.ReadNexFile()
     file_header = file_data['FileHeader']  # dict of .nex file info
     writer_software = file_data['MetaData']['file']['writerSoftware']  # dict of name, version
 
@@ -126,7 +119,8 @@ def main():
     # TODO create electrode groups
     # TODO create electrodes
 
-    add_units(nwbfile)
+    nex_file_name = sys.argv[1]
+    add_units(nwbfile, nex_file_name)
 
     # write NWB file to disk
     out_file = './output/nwb_test.nwb'
