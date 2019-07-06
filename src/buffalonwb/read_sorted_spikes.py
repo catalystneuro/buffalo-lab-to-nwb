@@ -31,10 +31,10 @@ def add_units(nwbfile, nex_file_name):
         if file_data['Variables'][i]['Timestamps'].shape != (file_data['Variables'][i]['Header']['Count'], ):
             raise InconsistentInputException()
         if file_data['Variables'][i]['WaveformValues'].shape != \
-            (file_data['Variables'][i]['Header']['Count'], file_data['Variables'][i]['Header']['NPointsWave']):
+           (file_data['Variables'][i]['Header']['Count'], file_data['Variables'][i]['Header']['NPointsWave']):
             raise InconsistentInputException()
         if file_data['Variables'][i]['WaveformValues'].shape != \
-            (file_data['Variables'][i]['Header']['Count'], file_data['Variables'][i]['Header']['NPointsWave']):
+           (file_data['Variables'][i]['Header']['Count'], file_data['Variables'][i]['Header']['NPointsWave']):
             raise InconsistentInputException()
 
     # var["Header"]["Type"] -- 3 - waveform
@@ -47,7 +47,8 @@ def add_units(nwbfile, nex_file_name):
     #             supported by NeuroExplorer version 5.100 or greater
     # var["Header"]["ContDataType"] --
     #             if 0, waveform and continuous values are stored as 16-bit integers;
-    #             if 1, waveform and continuous values are stored as 32-bit floating point values in units specified in Units field
+    #             if 1, waveform and continuous values are stored as 32-bit floating point values in units specified in
+    #             Units field
     # var["Header"]["SamplingRate"] -- waveform sampling frequency in Hertz
     # var["Header"]["ADtoMV"] --
     #             coefficient to convert from A/D values stored in file to units.
@@ -61,8 +62,6 @@ def add_units(nwbfile, nex_file_name):
     # var["Header"]["PreThrTime"] -- pre-threshold time in seconds
     #             if waveform timestamp in seconds is t,
     #             then the timestamp of the first point of waveform is t - PrethresholdTimeInSeconds
-
-
 
     # add these columns to unit table
     nwbfile.add_unit_column('name', 'name')
@@ -79,7 +78,7 @@ def add_units(nwbfile, nex_file_name):
         nwbfile.add_unit(electrodes=1,  # TODO
                          name=file_data['Variables'][i]['Header']['Name']
                          spike_times=file_data['Variables'][i]['Timestamps'],
-                         pre_threshold_samples=file_data['Variables'][i]['PreThrTime']
+                         pre_threshold_samples=file_data['Variables'][i]['PreThrTime'],
                          num_samples=file_data['Variables'][i]['Header']['NPointsWave'],
                          num_spikes=file_data['Variables'][i]['Header']['Count']
                          sampling_rate=file_data['Variables'][i]['Header']['SamplingRate'],
@@ -127,6 +126,7 @@ def main():
     with NWBHDF5IO(out_file, 'w') as io:
         print('Writing to file: ' + out_file)
         io.write(nwbfile)
+
 
 if __name__ == '__main__':
     main()
