@@ -5,6 +5,7 @@ from datetime import datetime
 from exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
+from warnings import warn
 
 
 def parse_header(header):
@@ -75,25 +76,73 @@ def parse_header(header):
 
 
 def read_csc_file(csc_data_file_name):
+    header_size = 16384
+    samples_per_record = 512
+    record_header_size = 20
+    record_size = record_header_size + samples_per_record * 2  # matches '<QIII' + 512 * 'h'
+
+    file_size = os.path.getsize(csc_data_file_name)
+    num_records = (file_size - header_size) / record_size
+    if int(num_records) != num_records:  # check integer
+        raise UnexpectedInputException()
+    num_records = int(num_records)
+
+    channel_number = None
+    Fs = None
+    ts = np.ndarray((num_records * samples_per_record, ), dtype=np.uint64)
+    data = np.ndarray((num_records * samples_per_record, ))
+
     with open(csc_data_file_name, 'rb') as data_file:
-        header = data_file.read(16384)
+        header = data_file.read(header_size)
         header_data = parse_header(header)
 
-        # data_file[16384:16388] unknown
-        data_file.seek(16384, os.SEEK_SET)
-        unknown = data_file.read(4)
+        # first_ts_r: Cheetah timestamp for this record. This corresponds to the sample time for the first data point
+        # in the data array, in MICROseconds.
+        # channel_number_r: The channel number for this record. This is NOT the A/D channel number.
+        # Fs_r: The sampling frequency (Hz) for the data array.
+        # num_valid_samples_r: Number of values in the data array containing valid data (max 512).
+        record_ind = 0
+        while record_ind < num_records:
+            read_record_header = data_file.read(record_header_size)
+            first_ts_r, channel_number_r, Fs_r, num_valid_samples_r = unpack('<QIII', read_record_header)
 
-        # first_timestamp: Cheetah timestamp for this record. This corresponds to the
-        # sample time for the first data point in the snSamples array.
-        # This value is in microseconds.
-        # channel_number: The channel number for this record. This is NOT the A/D channel number.
-        # Fs: The sampling frequency (Hz) for the data stored in data.
-        # num_valid_samples: Number of values in data containing valid data (fixed to 512).
-        first_timestamp, channel_number, Fs, num_valid_samples = unpack('<LIII', data_file.read(16))
-        if num_valid_samples != 512:
-            raise UnexpectedInputException()
+            if record_ind == 0:
+                channel_number = channel_number_r
+                Fs = Fs_r
+                if num_valid_samples_r != samples_per_record:
+                    raise UnexpectedInputException()
+            else:  # verify matching record
+                # first timestamp of the record might not be what we expect it to be -- see warning later
+                if not (channel_number == channel_number_r and Fs == Fs_r):
+                    raise InconsistentInputException()
+                # OK if last record has fewer than 512 valid samples -- handle in delete below
+                if record_ind < num_records - 1 and num_valid_samples_r != samples_per_record:
+                    raise InconsistentInputException()
 
-        data = np.fromfile(data_file, dtype='<u2')  # unsigned int, little endian
+            data_ind_start = record_ind * samples_per_record
+            data_ind_end = data_ind_start + samples_per_record
+            ts[data_ind_start:data_ind_end] = np.arange(first_ts_r,
+                                                        first_ts_r + samples_per_record * 1e6 / Fs,
+                                                        1e6 / Fs)
+            data[data_ind_start:data_ind_end] = np.fromfile(data_file, dtype='<h', count=samples_per_record)
+            record_ind = record_ind + 1
+
+        # is there still data in the file?
+        leftover_data = data_file.read()
+        if leftover_data:
+            raise InconsistentInputException()
+
+        # delete invalid entries if last num_valid_samples_r != samples_per_record
+        ts = np.delete(ts, np.s_[-(samples_per_record - num_valid_samples_r):])
+        data = np.delete(data, np.s_[-(samples_per_record - num_valid_samples_r):])
+
+        # check final timestamp makes sense
+        expected_last_ts = ts[0] + len(ts) * 1e6 / Fs
+        if abs(expected_last_ts - ts[-1]) > 0:
+            warn(('Last timestamp expected to be %d us based on starting time and sampling rate, but got %d us '
+                  '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
+
+        return header_data, ts, data
 
 
 def main():
