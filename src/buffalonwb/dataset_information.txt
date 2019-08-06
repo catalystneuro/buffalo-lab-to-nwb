@@ -1,0 +1,21 @@
+lfp_mat_file=FILENAME
+sorted_spikes_nex5_file=FILENAME
+behavior_eye_file=FILENAME
+
+identifier=ADDME
+session_description=ADDME
+session_id=ADDME
+experimenter=Yoni Browning
+lab=Buffalo Lab
+institution=University of Washington
+notes=ADDME
+stimulus_notes=ADDME
+data_collection=ADDME
+experiment_description=ADDME
+protocol=ADDME
+keywords=ADDME
+
+device_name=ADDME
+eg_name=Gray Matter Array ADDME
+eg_description=ADDME
+eg_location=Hippocampus ADDME

@@ -80,6 +80,8 @@ def main():
                               group=electrode_group,
                               id=id)
 
+    # Reach out to Yoni
+
     add_units(nwbfile, sys.argv[2])
 
     # write NWB file to disk
