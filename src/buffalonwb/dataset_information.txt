@@ -1,21 +1,27 @@
-lfp_mat_file=FILENAME
-sorted_spikes_nex5_file=FILENAME
-behavior_eye_file=FILENAME
-
+# The identifier is a unique ID for this file, it's optional 
+# (generate using UUID or come up a code thats unique, i.e. BUFFLO LAB 234)
 identifier=ADDME
-session_description=ADDME
+
+#internal code for "one day of recording"
 session_id=ADDME
+session_description=ADDME
+
+# experimenter and lab
 experimenter=Yoni Browning
 lab=Buffalo Lab
 institution=University of Washington
+
+# notes
 notes=ADDME
 stimulus_notes=ADDME
 data_collection=ADDME
 experiment_description=ADDME
 protocol=ADDME
-keywords=ADDME
+keywords=ADDME,I AM,A LIST,SEPARATED,BY COMMAS
 
+# about the recording setup
 device_name=ADDME
 eg_name=Gray Matter Array ADDME
 eg_description=ADDME
 eg_location=Hippocampus ADDME
+num_electrodes=124

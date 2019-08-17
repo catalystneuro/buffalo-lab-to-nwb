@@ -1,77 +1,186 @@
-import sys
-import pytz
-import math
+# import statements? or perhaps not
+# IMPORTING AND SETUP
+# Currently copy/pasted
 from datetime import datetime
-from pprint import pprint
-from nexfile import nexfile
-from pynwb import NWBFile, NWBHDF5IO
-from exceptions import InconsistentInputException, UnsupportedInputException
-from read_sorted_spikes import add_units
+from dateutil.tz import tzlocal
+import pytz
+import pynwb
 
+
+from pynwb import TimeSeries
+import numpy as np
+
+#from pynwb.ecephys import ElectricalSeries
+from pynwb.ecephys import ElectricalSeries
+from hdmf.data_utils import DataChunkIterator
+import h5py
+# MAKE SETUP FILE
+import sys
+sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
+import nexfile
+from uuid import UUID
+from struct import unpack
+from warnings import warn
+
+from datetime import datetime
+from dateutil.tz import tzlocal
+import pytz
+import pynwb
+from pynwb import NWBFile
+from pynwb import ProcessingModule
+import math
+import os
+from pynwb import NWBHDF5IO
+import sys
+
+from add_units import add_units
+from add_raw_nlx_data import add_raw_nlx_data
+from add_behavior import add_behavior
+from add_processed_nlx_data import add_lfp
+
+import gc
 
 """
 Usage: python nwb.py [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file]
 
 """
 
-
-
 def main():
-    # create the NWBFile instance
-    identifier = 'ADDME'
+    # main
+    # FILENAMES
+    # files for jupyter
+    metadata_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
+    lfp_mat_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
+    sorted_spikes_nex5_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\SortedSpikes\\2017-04-27_11-41-21_sorted.nex5'
+    behavior_eye_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
+    raw_nlx_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\RawCSCs\\CSC%.ncs'
 
-    session_description = 'ADDME'
-    session_id = 'ADDME'
-    session_start_time = datetime.now()  # 'ADDME'
-    timestamps_reference_time = datetime.now()  # 'ADDME'
+    out_file_raw = './buffalo_raw.nwb'
+    out_file_processed = './buffalo_processed.nwb'
+
+    # METADATA
+    metadata = read_metadata(metadata_file)
+
+    session_start_time = datetime.now()  # The first time recorded in the session ( I will get this)
+    timestamps_reference_time = datetime.now()  # The reference time for timestamps - this is probably the same as session start time but pretty sure Yoni said it's the first blink
     timezone = pytz.timezone('US/Pacific')
-    notes = 'ADDME'
-    stimulus_notes = 'ADDME'
 
-    data_collection = 'ADDME'  # notes about data collection and analyis
-    experiment_description = 'ADDME'
-    protocol = 'ADDME'
-    keywords = ['ADDME']
+    # ADD THE HEADER DATA HERE??
+    # dump in labmetadata
+    # https://pynwb.readthedocs.io/en/stable/pynwb.file.html#pynwb.file.LabMetaData
+    # (buffalo_labmetadata)
 
-    experimenter = 'Yoni Browning'
-    lab = 'Buffalo Lab'
-    institution = 'University of Washington'
+    # MAKE NWB FILE
+    # https://pynwb.readthedocs.io/en/stable/pynwb.file.html
+    metadata["session_start_time"] = timezone.localize(session_start_time)
+    metadata["timestamps_reference_time"] = timezone.localize(timestamps_reference_time)
+    nwbfile = NWBFile(session_description=metadata["session_description"],
+                      identifier=metadata["identifier"],
+                      session_id=metadata["session_id"],
+                      session_start_time=metadata["session_start_time"],
+                      timestamps_reference_time=metadata["timestamps_reference_time"],
+                      notes=metadata["notes"],
+                      stimulus_notes=metadata["stimulus_notes"],
+                      data_collection=metadata["data_collection"],
+                      experiment_description=metadata["experiment_description"],
+                      protocol=metadata["protocol"],
+                      keywords=metadata["keywords"],
+                      experimenter=metadata["experimenter"],
+                      lab=metadata["lab"],
+                      institution=metadata["institution"])
+    electrode_table_region = add_electrodes(nwbfile, metadata)
 
-    session_start_time = timezone.localize(session_start_time)
-    timestamps_reference_time = timezone.localize(timestamps_reference_time)
-    nwbfile = NWBFile(session_description=session_description,
-                      identifier=identifier,
-                      session_id=session_id,
-                      session_start_time=session_start_time,
-                      timestamps_reference_time=timestamps_reference_time,
-                      notes=notes,
-                      stimulus_notes=stimulus_notes,
-                      data_collection=data_collection,
-                      experiment_description=experiment_description,
-                      protocol=protocol,
-                      keywords=keywords,
-                      experimenter=experimenter,
-                      lab=lab,
-                      institution=institution)
+    skip_raw = True
+    if skip_raw:
+        print("skipping raw data...")
+    if not skip_raw:
+        # RAW COMPONENTS
+        # RAW DATA
+        add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, metadata["num_electrodes"])
 
-    # create recording device
-    device_name = 'Neuralynx ADDME'
+        # BEHAVIOR (PROCESSED)
+        add_behavior(nwbfile, behavior_eye_file)
+
+        # WRITE RAW
+        with NWBHDF5IO(out_file_raw, mode='w') as io:
+            print('Writing to file: ' + out_file_raw)
+            io.write(nwbfile)
+            print(nwbfile)
+
+    gc.collect()
+    skip_processed = False
+    if skip_processed:
+        print("skipping processed data...")
+    if not skip_processed:
+        # now copy
+        # raw_io = NWBHDF5IO(out_file_raw, 'r')
+        # raw_nwbfile_in = raw_io.read()
+        # nwbfile_proc = raw_nwbfile_in.copy()
+        # with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
+        #    raw_nwbfile_in = raw_io.read()
+        #    nwbfile_proc = raw_nwbfile_in.copy()
+        # print('Copying NWB file ' + out_file_raw)
+        proc_module = nwbfile.create_processing_module('processed_data', 'module for processed data')
+
+        # BEHAVIOR (PROCESSED)
+        add_behavior(nwbfile, behavior_eye_file)
+
+        # PROCESSED COMPONENTS
+        # UNITS
+        # add_units(nwbfile_proc, sorted_spikes_nex5_file)
+        add_units(nwbfile, sorted_spikes_nex5_file)
+
+        # LFP
+        iterator_flag = False
+        # metadata["num_electrodes"]
+        # add_lfp(nwbfile_proc,lfp_mat_file,electrode_table_region,4,proc_module,iterator_flag)
+        add_lfp(nwbfile, lfp_mat_file, electrode_table_region, 4, proc_module, iterator_flag)
+
+        # WRITE PROCESSED
+        #with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
+        with NWBHDF5IO(out_file_processed, mode='w') as io:
+            print('Writing to file: ' + out_file_processed)
+            io.write(nwbfile)
+            print(nwbfile)
+
+# general tools
+def read_metadata(metadata_file):
+    d = {}
+    with open(metadata_file) as f:
+        for line in f:
+            if '#' in line or not line.strip(): continue
+            key, val = line.replace("\r", "").replace("\n", "").split("=")
+            d[key] = val
+    # manually convert keywords and num_electrodes to list and int respectively
+    d["keywords"] = list(d["keywords"].split(","))
+    d["num_electrodes"] = int(d["num_electrodes"])
+    return d
+
+
+def add_electrodes(nwbfile, metadata):
+    # Add the device and electrodes
+    # Add device
+    # NWB needs to know what recording device we used before we can make any electrode groups
+    device_name = metadata["device_name"]
     device = nwbfile.create_device(name=device_name)
 
-    # create electrode group
-    eg_name = 'Gray Matter Array ADDME'
-    eg_description = 'ADDME'
-    eg_location = 'Hippocampus ADDME'
+    # Add electrodes
+    # electrode groups each need a name, location and device
+    eg_name = metadata["eg_name"]
+    eg_description = metadata["eg_description"]
+    eg_location = metadata["eg_description"]
     eg_device = device
     electrode_group = nwbfile.create_electrode_group(name=eg_name,
                                                      description=eg_description,
                                                      location=eg_location,
                                                      device=device)
 
-    # add electrodes with id's 1 to num_electrodes, inclusive
-    num_electrodes = 124
-    for id in range(1, num_electrodes+1):
-        nwbfile.add_electrode(x=math.nan,  # ADDME
+    # electrodes each need an ID from 1-num_electrodes
+    # https://pynwb.readthedocs.io/en/stable/pynwb.file.html#pynwb.file.NWBFile.add_electrode
+    # we'll need to get the electrode information from Yoni
+    num_electrodes = metadata["num_electrodes"]
+    for id in range(1, num_electrodes + 1):
+        nwbfile.add_electrode(x=math.nan,
                               y=math.nan,
                               z=math.nan,
                               imp=math.nan,
@@ -80,17 +189,10 @@ def main():
                               group=electrode_group,
                               id=id)
 
-    # Reach out to Yoni
+    # all electrodes in table region
+    electrode_table_region = nwbfile.create_electrode_table_region(list(range(0, num_electrodes)), 'all the electrodes')
 
-    add_units(nwbfile, sys.argv[2])
-
-    # write NWB file to disk
-    out_file = './output/nwb_test.nwb'
-    with NWBHDF5IO(out_file, 'w') as io:
-        print('Writing to file: ' + out_file)
-        io.write(nwbfile)
-        print(nwbfile)
-
+    return electrode_table_region
 
 if __name__ == '__main__':
     main()

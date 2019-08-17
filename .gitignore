@@ -2,8 +2,8 @@
 src/testing/
 
 # Generated files
+*.nwb
 output/
-.nwb
 
 ### VisualStudioCode ###
 .vscode/*
