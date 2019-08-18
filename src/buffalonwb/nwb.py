@@ -1,42 +1,13 @@
-# import statements? or perhaps not
-# IMPORTING AND SETUP
-# Currently copy/pasted
 from datetime import datetime
-from dateutil.tz import tzlocal
 import pytz
-import pynwb
-
-
-from pynwb import TimeSeries
-import numpy as np
-
-#from pynwb.ecephys import ElectricalSeries
-from pynwb.ecephys import ElectricalSeries
-from hdmf.data_utils import DataChunkIterator
-import h5py
-# MAKE SETUP FILE
-import sys
-sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
-import nexfile
-from uuid import UUID
-from struct import unpack
-from warnings import warn
-
-from datetime import datetime
-from dateutil.tz import tzlocal
-import pytz
-import pynwb
 from pynwb import NWBFile
-from pynwb import ProcessingModule
 import math
-import os
 from pynwb import NWBHDF5IO
-import sys
 
-from add_units import add_units
-from add_raw_nlx_data import add_raw_nlx_data
-from add_behavior import add_behavior
-from add_processed_nlx_data import add_lfp
+from buffalonwb.add_units import add_units
+from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
+from buffalonwb.add_behavior import add_behavior
+from buffalonwb.add_processed_nlx_data import add_lfp
 
 import gc
 
@@ -44,6 +15,7 @@ import gc
 Usage: python nwb.py [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file]
 
 """
+
 
 def main():
     # main

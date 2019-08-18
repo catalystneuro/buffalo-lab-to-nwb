@@ -1,7 +1,5 @@
-import sys
-from pprint import pprint
-from nexfile import nexfile
-from exceptions import InconsistentInputException, UnsupportedInputException
+from nexfile.nexfile import nexfile
+from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
 
 
 def add_units(nwbfile, nex_file_name):

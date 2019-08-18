@@ -1,20 +1,22 @@
 import os
 import numpy as np
 from datetime import datetime
-from exceptions import InconsistentInputException, UnexpectedInputException
+from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn
+from hdmf.data_utils import DataChunkIterator
+from pynwb.ecephys import ElectricalSeries
 
 
 # add raw nlx data
 def add_raw_nlx_data(nwbfile,raw_nlx_file,electrode_table_region,num_electrodes):
     print("adding raw nlx data")
-    raw_header, raw_ts, data =read_csc_file(''.join([raw_nlx_file.split("%")[0], str(1), raw_nlx_file.split("%")[1]]))
+    raw_header, raw_ts, data = read_csc_file(''.join([raw_nlx_file.split("%")[0], str(1), raw_nlx_file.split("%")[1]]))
 
     rate = raw_header["SamplingFrequency"]
     ephys_data = DataChunkIterator(data=raw_generator,iter_axis=1,maxshape=(len(raw_ts),num_electrodes))
-    ephys_timestamps=raw_ts
+    ephys_timestamps = raw_ts
 
     ephys_ts = ElectricalSeries('raw_ephys',
                                 ephys_data,

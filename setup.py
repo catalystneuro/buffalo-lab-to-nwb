@@ -13,7 +13,7 @@ print('found these packages:', pkgs)
 schema_dir = 'data'
 
 setup_args = {
-    'name': 'buffalo_lab_data_to_nwb',
+    'name': 'buffalo-lab-data-to-nwb',
     'version': versioneer.get_version(),
     'cmdclass': versioneer.get_cmdclass(),
     'description': 'A package for converting Buffalo Lab data to the NWB standard',
@@ -25,7 +25,7 @@ setup_args = {
     'license': "BSD",
     'install_requires':
     [
-        'pynwb'
+        'pynwb', 'scipy'
     ],
     'packages': pkgs,
     'package_dir': {'': 'src'},

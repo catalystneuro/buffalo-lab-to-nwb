@@ -4,6 +4,8 @@ from pynwb.ecephys import ElectricalSeries
 import numpy as np
 import os
 import pynwb
+from hdmf.data_utils import DataChunkIterator
+from buffalonwb.exceptions import UnexpectedInputException
 
 
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
@@ -91,7 +93,7 @@ def MH_process_nlx_mat_file(nlx_file_name):
 
     # make a dictionary
     file_dict = dict()
-    for i in (dict_vars):
+    for i in dict_vars:
         file_dict[i] = locals()[i]
 
     return file_dict
@@ -125,7 +127,7 @@ def lfp_generator(lfp_file):
     # generate lfp data chunks
     x = 0
     max_chunks = 124
-    while (x < max_chunks):
+    while x < max_chunks:
         file_name = ''.join([lfp_file.split("%")[0], str(x), lfp_file.split("%")[1]])
         print(file_name)
         processed_data = MH_process_nlx_mat_file(file_name)
