@@ -27,16 +27,18 @@ def add_raw_nlx_data(nwbfile,raw_nlx_file,electrode_table_region,num_electrodes)
                                 description="This is a recording from hippocamus")
     nwbfile.add_acquisition(ephys_ts)
 
+
 def raw_generator(raw_nlx_file):
-    #generate raw data chunks for iterator
-    x=0
-    num_chunks=3
-    while(x<num_chunks):
-        file_name=''.join([raw_nlx_file.split("%")[0], str(x), raw_nlx_file.split("%")[1]])
-        raw_header, raw_ts, raw_data =read_csc_file(file_name)
-        x+=1
+    # generate raw data chunks for iterator
+    x = 0
+    num_chunks = 3
+    while x < num_chunks:
+        file_name = ''.join([raw_nlx_file.split("%")[0], str(x), raw_nlx_file.split("%")[1]])
+        raw_header, raw_ts, raw_data = read_csc_file(file_name)
+        x += 1
         yield raw_data
     return
+
 
 # RAW DATA FUNCTIONS
 def parse_header(header):

@@ -141,7 +141,6 @@ def add_electrodes(nwbfile, metadata):
     eg_name = metadata["eg_name"]
     eg_description = metadata["eg_description"]
     eg_location = metadata["eg_description"]
-    eg_device = device
     electrode_group = nwbfile.create_electrode_group(name=eg_name,
                                                      description=eg_description,
                                                      location=eg_location,

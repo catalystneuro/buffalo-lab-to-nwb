@@ -1,4 +1,4 @@
-from nexfile.nexfile import nexfile
+from nexfile import nexfile
 from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
 
 
