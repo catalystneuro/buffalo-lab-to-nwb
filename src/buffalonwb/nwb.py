@@ -49,11 +49,15 @@ def main():
     # main
     # FILENAMES
     # files for jupyter
-    metadata_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
-    lfp_mat_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
-    sorted_spikes_nex5_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\SortedSpikes\\2017-04-27_11-41-21_sorted.nex5'
-    behavior_eye_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
-    raw_nlx_file = 'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\RawCSCs\\CSC%.ncs'
+
+    metadata_file = sys.argv[1] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
+    lfp_mat_file = sys.argv[2]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
+    sorted_spikes_nex5_file = sys.argv[3]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\SortedSpikes\\2017-04-27_11-41-21_sorted.nex5'
+    behavior_eye_file = sys.argv[4] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
+    raw_nlx_file = sys.argv[5] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\RawCSCs\\CSC%.ncs'
+    skip_raw = any([i == '-skipraw' for i in sys.argv])
+    skip_processed = any([i == '-skipprocessed' for i in sys.argv])
+    lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
 
     out_file_raw = './buffalo_raw.nwb'
     out_file_processed = './buffalo_processed.nwb'
@@ -89,14 +93,14 @@ def main():
                       lab=metadata["lab"],
                       institution=metadata["institution"])
     electrode_table_region = add_electrodes(nwbfile, metadata)
+    proc_module = nwbfile.create_processing_module('processed_data', 'module for processed data')
 
-    skip_raw = True
     if skip_raw:
         print("skipping raw data...")
     if not skip_raw:
         # RAW COMPONENTS
         # RAW DATA
-        add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, metadata["num_electrodes"])
+        #add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, metadata["num_electrodes"])
 
         # BEHAVIOR (PROCESSED)
         add_behavior(nwbfile, behavior_eye_file)
@@ -107,23 +111,20 @@ def main():
             io.write(nwbfile)
             print(nwbfile)
 
-    gc.collect()
-    skip_processed = False
     if skip_processed:
         print("skipping processed data...")
     if not skip_processed:
-        # now copy
-        # raw_io = NWBHDF5IO(out_file_raw, 'r')
-        # raw_nwbfile_in = raw_io.read()
-        # nwbfile_proc = raw_nwbfile_in.copy()
-        # with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
-        #    raw_nwbfile_in = raw_io.read()
-        #    nwbfile_proc = raw_nwbfile_in.copy()
-        # print('Copying NWB file ' + out_file_raw)
-        proc_module = nwbfile.create_processing_module('processed_data', 'module for processed data')
+        #now copy
+        raw_io = NWBHDF5IO(out_file_raw, 'r')
+        raw_nwbfile_in = raw_io.read()
+        nwbfile_proc = raw_nwbfile_in.copy()
+        with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
+            raw_nwbfile_in = raw_io.read()
+            nwbfile_proc = raw_nwbfile_in.copy()
+        print('Copying NWB file ' + out_file_raw)
 
         # BEHAVIOR (PROCESSED)
-        add_behavior(nwbfile, behavior_eye_file)
+        #add_behavior(nwbfile, behavior_eye_file)
 
         # PROCESSED COMPONENTS
         # UNITS
@@ -131,14 +132,12 @@ def main():
         add_units(nwbfile, sorted_spikes_nex5_file)
 
         # LFP
-        iterator_flag = False
-        # metadata["num_electrodes"]
-        # add_lfp(nwbfile_proc,lfp_mat_file,electrode_table_region,4,proc_module,iterator_flag)
-        add_lfp(nwbfile, lfp_mat_file, electrode_table_region, 4, proc_module, iterator_flag)
+        add_lfp(nwbfile_proc,lfp_mat_file,electrode_table_region,metadata["num_electrodes"],proc_module,lfp_iterator_flag)
+        #add_lfp(nwbfile, lfp_mat_file, electrode_table_region, 4, proc_module, iterator_flag)
 
         # WRITE PROCESSED
-        #with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-        with NWBHDF5IO(out_file_processed, mode='w') as io:
+        with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
+        #with NWBHDF5IO(out_file_processed, mode='w') as io:
             print('Writing to file: ' + out_file_processed)
             io.write(nwbfile)
             print(nwbfile)

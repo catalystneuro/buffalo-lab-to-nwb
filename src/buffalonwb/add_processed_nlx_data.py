@@ -9,7 +9,7 @@ import pynwb
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
     if iterator_flag:
         lfp, lfp_timestamps, lfp_resolution = get_lfp_data(1, lfp_file_name)
-        lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name), iter_axis=1)
+        lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name,num_electrodes), iter_axis=1)
     else:
         lfp_data, lfp_timestamps, lfp_resolution = get_lfp_data(num_electrodes, lfp_file_name)
 
@@ -42,6 +42,7 @@ def MH_process_nlx_mat_file(nlx_file_name):
     # FIXTHIS
     if os.path.exists(nlx_file_name):
         nlx_file = h5py.File(nlx_file_name, 'r')
+        print(nlx_file_name)
     else:
         msg = 'skipped ' + str(nlx_file_name + ', returning empty dict')
         print(msg)
@@ -94,6 +95,9 @@ def MH_process_nlx_mat_file(nlx_file_name):
     for i in (dict_vars):
         file_dict[i] = locals()[i]
 
+    # DELETE NLX FILE TO CLEAN MEMORY
+    del nlx_file
+
     return file_dict
 
 
@@ -106,7 +110,7 @@ def check_get_scalar(v):
 
 
 def get_lfp_data(num_electrodes, lfp_file):
-    processed = MH_process_nlx_mat_file(''.join([lfp_file.split("%")[0], str(1), lfp_file.split("%")[1]]))
+    processed = MH_process_nlx_mat_file(''.join([lfp_file.split("_FILENUM_")[0], str(1), lfp_file.split("_FILENUM_")[1]]))
     num_ts = max(processed["lfp_ts"].shape)
     lfp = np.full((num_electrodes, num_ts), np.nan)
     ts = processed["lfp_ts"]
@@ -114,23 +118,19 @@ def get_lfp_data(num_electrodes, lfp_file):
     # check if ts are all the same
     for f in range(1, num_electrodes):
         print(f)
-        file_name = ''.join([lfp_file.split("%")[0], str(f), lfp_file.split("%")[1]])
+        file_name = ''.join([lfp_file.split("_FILENUM_")[0], str(f), lfp_file.split("_FILENUM_")[1]])
         processed_file = MH_process_nlx_mat_file(file_name)
         if processed_file:
             lfp[f, :] = processed_file["lfp"]
     return lfp, ts, fs
 
-
-def lfp_generator(lfp_file):
+def lfp_generator(lfp_file,num_electrodes):
     # generate lfp data chunks
-    x = 0
-    max_chunks = 124
-    while (x < max_chunks):
-        file_name = ''.join([lfp_file.split("%")[0], str(x), lfp_file.split("%")[1]])
-        print(file_name)
+    for x in range(1, num_electrodes + 1):
+        file_name = ''.join([lfp_file.split("_FILENUM_")[0], str(x), lfp_file.split("_FILENUM_")[1]])
         processed_data = MH_process_nlx_mat_file(file_name)
         lfp_data = processed_data["lfp"]
-        x += 1
+        del processed_data
         yield lfp_data
     return
 
