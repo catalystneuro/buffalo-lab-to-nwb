@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from h5py import File
-from exceptions import InconsistentInputException, UnexpectedInputException
+from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 
 
 """

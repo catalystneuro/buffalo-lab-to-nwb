@@ -4,6 +4,7 @@ import scipy.io as spio
 import numpy as np
 from pynwb import TimeSeries
 
+
 # add behavior
 def add_behavior(nwbfile, behavior_eye_file):
     print("adding behavior")

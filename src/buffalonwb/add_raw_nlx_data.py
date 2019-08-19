@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from datetime import datetime
-from exceptions import InconsistentInputException, UnexpectedInputException
+from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn
@@ -35,6 +35,7 @@ def raw_generator(raw_nlx_file,num_electrodes):
         raw_header, raw_ts, raw_data =read_csc_file(file_name)
         yield raw_data
     return
+
 
 # RAW DATA FUNCTIONS
 def parse_header(header):
@@ -174,4 +175,3 @@ def read_csc_file(csc_data_file_name):
                   '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
 
         return header_data, ts, data
-
