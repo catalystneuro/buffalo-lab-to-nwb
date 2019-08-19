@@ -41,7 +41,7 @@ from add_processed_nlx_data import add_lfp
 import gc
 
 """
-Usage: python nwb.py [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file]
+Usage: python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file] [raw_nlx_file]
 
 """
 
