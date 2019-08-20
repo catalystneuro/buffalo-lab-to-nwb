@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from datetime import datetime
-from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
+from exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn

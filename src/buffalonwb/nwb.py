@@ -1,16 +1,33 @@
+# IMPORTING AND SETUP
+# Currently copy/pasted
+
+
+import numpy as np
+from pynwb import TimeSeries
+from pynwb.ecephys import ElectricalSeries
+from hdmf.data_utils import DataChunkIterator
+import h5py
+# MAKE SETUP FILE
+import sys
+sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
+import nexfile
+from uuid import UUID
+from struct import unpack
+from warnings import warn
+
 from datetime import datetime
 import pytz
 from pynwb import NWBFile
+from pynwb import ProcessingModule
 import math
+import os
 from pynwb import NWBHDF5IO
+import sys
 
-from buffalonwb.add_units import add_units
-from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
-from buffalonwb.add_behavior import add_behavior
-from buffalonwb.add_processed_nlx_data import add_lfp
-
-import gc
-
+from add_units import add_units
+from add_raw_nlx_data import add_raw_nlx_data
+from add_behavior import add_behavior
+from add_processed_nlx_data import add_lfp
 """
 Usage: python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file] [raw_nlx_file]
 
@@ -30,6 +47,7 @@ def main():
     skip_raw = any([i == '-skipraw' for i in sys.argv])
     skip_processed = any([i == '-skipprocessed' for i in sys.argv])
     lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
+    no_copy = any([i == '-dontcopy' for i in sys.argv])
 
     out_file_raw = './buffalo_raw.nwb'
     out_file_processed = './buffalo_processed.nwb'
@@ -72,7 +90,7 @@ def main():
     if not skip_raw:
         # RAW COMPONENTS
         # RAW DATA
-        #add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, metadata["num_electrodes"])
+        add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, metadata["num_electrodes"])
 
         # BEHAVIOR (PROCESSED)
         add_behavior(nwbfile, behavior_eye_file)
@@ -86,14 +104,18 @@ def main():
     if skip_processed:
         print("skipping processed data...")
     if not skip_processed:
-        #now copy
-        raw_io = NWBHDF5IO(out_file_raw, 'r')
-        raw_nwbfile_in = raw_io.read()
-        nwbfile_proc = raw_nwbfile_in.copy()
-        with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
+        if no_copy:
+            nwbfile_proc = nwbfile
+        else:
+            #copy from raw to maintain file linkage
+            raw_io = NWBHDF5IO(out_file_raw, 'r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
-        print('Copying NWB file ' + out_file_raw)
+            with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
+                raw_nwbfile_in = raw_io.read()
+                nwbfile_proc = raw_nwbfile_in.copy()
+            print('Copying NWB file ' + out_file_raw)
+
 
         # BEHAVIOR (PROCESSED)
         #add_behavior(nwbfile, behavior_eye_file)
@@ -108,11 +130,19 @@ def main():
         #add_lfp(nwbfile, lfp_mat_file, electrode_table_region, 4, proc_module, iterator_flag)
 
         # WRITE PROCESSED
-        with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-        #with NWBHDF5IO(out_file_processed, mode='w') as io:
-            print('Writing to file: ' + out_file_processed)
-            io.write(nwbfile)
-            print(nwbfile)
+        if no_copy:
+            with NWBHDF5IO(out_file_processed, mode='w') as io:
+            # with NWBHDF5IO(out_file_processed, mode='w') as io:
+                print('Writing to file: ' + out_file_processed)
+                io.write(nwbfile)
+                print(nwbfile)
+        else:
+            with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
+            # with NWBHDF5IO(out_file_processed, mode='w') as io:
+                print('Writing to file: ' + out_file_processed)
+                io.write(nwbfile)
+                print(nwbfile)
+
 
 # general tools
 def read_metadata(metadata_file):

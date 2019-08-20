@@ -5,11 +5,12 @@ import numpy as np
 import os
 import pynwb
 from hdmf.data_utils import DataChunkIterator
-from buffalonwb.exceptions import UnexpectedInputException
+from exceptions import InconsistentInputException, UnexpectedInputException
 
 
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
     if iterator_flag:
+        print("LFP adding via data chunk iterator")
         lfp, lfp_timestamps, lfp_resolution = get_lfp_data(1, lfp_file_name)
         lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name,num_electrodes), iter_axis=1)
     else:
@@ -119,7 +120,6 @@ def get_lfp_data(num_electrodes, lfp_file):
     fs = processed["Fs"]
     # check if ts are all the same
     for f in range(1, num_electrodes):
-        print(f)
         file_name = ''.join([lfp_file.split("_FILENUM_")[0], str(f), lfp_file.split("_FILENUM_")[1]])
         processed_file = MH_process_nlx_mat_file(file_name)
         if processed_file:
