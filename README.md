@@ -14,6 +14,11 @@ pip install git+https://github.com/ben-dichter-consulting/buffalo-lab-data-to-nw
 ```
 python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file] [raw_nlx_file] [optional options]
 
+# IMPORTANT
+# the [raw_nlx_file] and [lfp_mat_file] should be strings where the file number is replaced by the string "_FILENUM_"
+# i.e. "Your path\\RawCSCs\\CSC_FILENUM_.ncs"
+
+
 # optional inputs
 # add these after the positional arguments to use additional options
 # "-skipraw" (will skip adding raw data to nwb file)
