@@ -9,7 +9,7 @@ from hdmf.data_utils import DataChunkIterator
 import h5py
 # MAKE SETUP FILE
 import sys
-sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
+#sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
 import nexfile
 from uuid import UUID
 from struct import unpack

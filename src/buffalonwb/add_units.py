@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
+#sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
 import nexfile
 #from exceptions import InconsistentInputException, UnsupportedInputException
 import numpy as np
