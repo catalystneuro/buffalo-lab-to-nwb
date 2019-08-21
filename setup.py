@@ -25,7 +25,7 @@ setup_args = {
     'license': "BSD",
     'install_requires':
     [
-        'pynwb', 'scipy'
+        'pynwb', 'scipy', 'tqdm'
     ],
     'packages': pkgs,
     'package_dir': {'': 'src'},
