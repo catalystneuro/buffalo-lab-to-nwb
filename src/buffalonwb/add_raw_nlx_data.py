@@ -7,11 +7,12 @@ from struct import unpack
 from warnings import warn
 from hdmf.data_utils import DataChunkIterator
 from pynwb.ecephys import ElectricalSeries
+from tqdm import trange
 
 
 def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrodes):
     print("adding raw nlx data")
-    raw_header, raw_ts, data = read_csc_file(''.join([raw_nlx_file.split('%')[0], str(1), raw_nlx_file.split("%")[1]]))
+    raw_header, raw_ts, data = read_csc_file(str(1).join(raw_nlx_file.split('%')))
 
     rate = raw_header["SamplingFrequency"]
     data = raw_generator(raw_nlx_file, num_electrodes)
@@ -30,8 +31,8 @@ def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrod
 
 def raw_generator(raw_nlx_file, num_electrodes):
     #  generate raw data chunks for iterator
-    for x in range(1, num_electrodes+1):
-        file_name = ''.join([raw_nlx_file.split("%")[0], str(x), raw_nlx_file.split("%")[1]])
+    for x in trange(1, num_electrodes+1, desc='writing raw data'):
+        file_name = str(x).join(raw_nlx_file.split("%"))
         raw_header, raw_ts, raw_data = read_csc_file(file_name)
         yield raw_data
     return
@@ -106,7 +107,6 @@ def parse_header(header):
 
 
 def read_csc_file(csc_data_file_name):
-    print(csc_data_file_name)
     header_size = 16384
     samples_per_record = 512
     record_header_size = 20

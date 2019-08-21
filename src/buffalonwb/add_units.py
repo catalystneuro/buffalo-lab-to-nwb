@@ -1,5 +1,5 @@
-import nexfile
-#from exceptions import InconsistentInputException, UnsupportedInputException
+from nexfile import nexfile
+from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
 
 # From Ryan Ly
 def add_units(nwbfile, nex_file_name):

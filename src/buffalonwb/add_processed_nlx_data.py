@@ -6,6 +6,7 @@ import os
 import pynwb
 from hdmf.data_utils import DataChunkIterator
 from buffalonwb.exceptions import UnexpectedInputException
+from tqdm import trange
 
 
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
@@ -45,7 +46,6 @@ def MH_process_nlx_mat_file(nlx_file_name):
     # FIXTHIS
     if os.path.exists(nlx_file_name):
         nlx_file = h5py.File(nlx_file_name, 'r')
-        print(nlx_file_name)
     else:
         msg = 'skipped ' + str(nlx_file_name + ', returning empty dict')
         print(msg)
@@ -113,24 +113,24 @@ def check_get_scalar(v):
 
 
 def get_lfp_data(num_electrodes, lfp_file):
-    processed = MH_process_nlx_mat_file(''.join([lfp_file.split("_FILENUM_")[0], str(1), lfp_file.split("_FILENUM_")[1]]))
+    processed = MH_process_nlx_mat_file(str(1).join(lfp_file.split("%")))
     num_ts = max(processed["lfp_ts"].shape)
     lfp = np.full((num_electrodes, num_ts), np.nan)
     ts = processed["lfp_ts"]
     fs = processed["Fs"]
     # check if ts are all the same
-    for f in range(1, num_electrodes):
-        file_name = ''.join([lfp_file.split("_FILENUM_")[0], str(f), lfp_file.split("_FILENUM_")[1]])
+    for f in trange(1, num_electrodes + 1, desc='reading LFP'):
+        file_name = str(f).join(lfp_file.split("%"))
         processed_file = MH_process_nlx_mat_file(file_name)
         if processed_file:
             lfp[f, :] = processed_file["lfp"]
     return lfp, ts, fs
 
 
-def lfp_generator(lfp_file,num_electrodes):
+def lfp_generator(lfp_file, num_electrodes):
     # generate lfp data chunks
-    for x in range(1, num_electrodes + 1):
-        file_name = ''.join([lfp_file.split("_FILENUM_")[0], str(x), lfp_file.split("_FILENUM_")[1]])
+    for x in trange(1, num_electrodes + 1, desc='writing LFP'):
+        file_name = str(x).join(lfp_file.split("%"))
         processed_data = MH_process_nlx_mat_file(file_name)
         lfp_data = processed_data["lfp"]
         del processed_data
