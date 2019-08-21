@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from datetime import datetime
-from exceptions import InconsistentInputException, UnexpectedInputException
+from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn
@@ -9,15 +9,14 @@ from hdmf.data_utils import DataChunkIterator
 from pynwb.ecephys import ElectricalSeries
 
 
-# add raw nlx data
-def add_raw_nlx_data(nwbfile,raw_nlx_file,electrode_table_region,num_electrodes):
+def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrodes):
     print("adding raw nlx data")
-    raw_header, raw_ts, data =read_csc_file(''.join([raw_nlx_file.split("_FILENUM_")[0], str(1), raw_nlx_file.split("_FILENUM_")[1]]))
+    raw_header, raw_ts, data = read_csc_file(''.join([raw_nlx_file.split('%')[0], str(1), raw_nlx_file.split("%")[1]]))
 
     rate = raw_header["SamplingFrequency"]
-    data= raw_generator(raw_nlx_file,num_electrodes)
-    ephys_data = DataChunkIterator(data=data,iter_axis=1,maxshape=(len(raw_ts),num_electrodes))
-    ephys_timestamps=raw_ts
+    data = raw_generator(raw_nlx_file, num_electrodes)
+    ephys_data = DataChunkIterator(data=data, iter_axis=1, maxshape=(len(raw_ts), num_electrodes))
+    ephys_timestamps = raw_ts
 
     ephys_ts = ElectricalSeries('raw_ephys',
                                 ephys_data,
@@ -28,11 +27,12 @@ def add_raw_nlx_data(nwbfile,raw_nlx_file,electrode_table_region,num_electrodes)
                                 description="This is a recording from hippocamus")
     nwbfile.add_acquisition(ephys_ts)
 
-def raw_generator(raw_nlx_file,num_electrodes):
-    #generate raw data chunks for iterator
-    for x in range(1,num_electrodes+1):
-        file_name=''.join([raw_nlx_file.split("_FILENUM_")[0], str(x), raw_nlx_file.split("_FILENUM_")[1]])
-        raw_header, raw_ts, raw_data =read_csc_file(file_name)
+
+def raw_generator(raw_nlx_file, num_electrodes):
+    #  generate raw data chunks for iterator
+    for x in range(1, num_electrodes+1):
+        file_name = ''.join([raw_nlx_file.split("%")[0], str(x), raw_nlx_file.split("%")[1]])
+        raw_header, raw_ts, raw_data = read_csc_file(file_name)
         yield raw_data
     return
 

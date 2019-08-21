@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pynwb
 from hdmf.data_utils import DataChunkIterator
-from exceptions import InconsistentInputException, UnexpectedInputException
+from buffalonwb.exceptions import UnexpectedInputException
 
 
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
@@ -37,7 +37,7 @@ def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc
 # no input checking for now
 # add back input checking soon #FIXTHIS
 
-# process nlx mat file into dictonary
+# process nlx mat file into dictionary
 # needs: data, timestamps, resolution, time, rate
 def MH_process_nlx_mat_file(nlx_file_name):
     # for some reason files 7-9 don't exist
@@ -125,6 +125,7 @@ def get_lfp_data(num_electrodes, lfp_file):
         if processed_file:
             lfp[f, :] = processed_file["lfp"]
     return lfp, ts, fs
+
 
 def lfp_generator(lfp_file,num_electrodes):
     # generate lfp data chunks

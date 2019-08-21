@@ -19,7 +19,7 @@ setup_args = {
     'description': 'A package for converting Buffalo Lab data to the NWB standard',
     'long_description': readme,
     'long_description_content_type': 'text/x-rst; charset=UTF-8',
-    'author': 'Ryan Ly',
+    'author': 'Maija Honig, Ryan Ly, Ben Dichter',
     'author_email': 'rly@lbl.gov',
     'url': 'https://github.com/hdmf-dev/hdmf',
     'license': "BSD",
