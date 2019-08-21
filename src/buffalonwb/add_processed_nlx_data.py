@@ -13,7 +13,7 @@ def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc
     if iterator_flag:
         print("LFP adding via data chunk iterator")
         lfp, lfp_timestamps, lfp_resolution = get_lfp_data(1, lfp_file_name)
-        lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name,num_electrodes), iter_axis=1)
+        lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name, num_electrodes), iter_axis=1)
     else:
         lfp_data, lfp_timestamps, lfp_resolution = get_lfp_data(num_electrodes, lfp_file_name)
 
@@ -118,7 +118,7 @@ def get_lfp_data(num_electrodes, lfp_file):
     ts = processed["lfp_ts"]
     fs = processed["Fs"]
     # check if ts are all the same
-    for f in trange(1, num_electrodes + 1, desc='reading LFP'):
+    for f in trange(1, num_electrodes, desc='reading LFP'):
         file_name = str(f).join(lfp_file.split("%"))
         processed_file = MH_process_nlx_mat_file(file_name)
         if processed_file:
