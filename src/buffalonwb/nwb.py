@@ -107,7 +107,8 @@ def main():
         add_units(nwbfile, sorted_spikes_nex5_file)
 
         # LFP
-        add_lfp(nwbfile_proc,lfp_mat_file,electrode_table_region,metadata["num_electrodes"],proc_module,lfp_iterator_flag)
+        add_lfp(nwbfile_proc, lfp_mat_file, electrode_table_region, metadata["num_electrodes"], proc_module,
+                lfp_iterator_flag)
         #add_lfp(nwbfile, lfp_mat_file, electrode_table_region, 4, proc_module, iterator_flag)
 
         # WRITE PROCESSED
