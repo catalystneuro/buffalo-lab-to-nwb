@@ -1,13 +1,43 @@
-import sys
 import os
 import numpy as np
 from datetime import datetime
-from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
+from exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn
+from hdmf.data_utils import DataChunkIterator
+from pynwb.ecephys import ElectricalSeries
 
 
+# add raw nlx data
+def add_raw_nlx_data(nwbfile,raw_nlx_file,electrode_table_region,num_electrodes):
+    print("adding raw nlx data")
+    raw_header, raw_ts, data =read_csc_file(''.join([raw_nlx_file.split("_FILENUM_")[0], str(1), raw_nlx_file.split("_FILENUM_")[1]]))
+
+    rate = raw_header["SamplingFrequency"]
+    data= raw_generator(raw_nlx_file,num_electrodes)
+    ephys_data = DataChunkIterator(data=data,iter_axis=1,maxshape=(len(raw_ts),num_electrodes))
+    ephys_timestamps=raw_ts
+
+    ephys_ts = ElectricalSeries('raw_ephys',
+                                ephys_data,
+                                electrode_table_region,
+                                timestamps=ephys_timestamps,
+                                resolution=1/rate,
+                                comments="This is an electrical series",
+                                description="This is a recording from hippocamus")
+    nwbfile.add_acquisition(ephys_ts)
+
+def raw_generator(raw_nlx_file,num_electrodes):
+    #generate raw data chunks for iterator
+    for x in range(1,num_electrodes+1):
+        file_name=''.join([raw_nlx_file.split("_FILENUM_")[0], str(x), raw_nlx_file.split("_FILENUM_")[1]])
+        raw_header, raw_ts, raw_data =read_csc_file(file_name)
+        yield raw_data
+    return
+
+
+# RAW DATA FUNCTIONS
 def parse_header(header):
     """Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
     Input:
@@ -76,6 +106,7 @@ def parse_header(header):
 
 
 def read_csc_file(csc_data_file_name):
+    print(csc_data_file_name)
     header_size = 16384
     samples_per_record = 512
     record_header_size = 20
@@ -131,6 +162,7 @@ def read_csc_file(csc_data_file_name):
         leftover_data = data_file.read()
         if leftover_data:
             raise InconsistentInputException()
+        del leftover_data
 
         # delete invalid entries if last num_valid_samples_r != samples_per_record
         ts = np.delete(ts, np.s_[-(samples_per_record - num_valid_samples_r):])
@@ -143,13 +175,3 @@ def read_csc_file(csc_data_file_name):
                   '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
 
         return header_data, ts, data
-
-
-def main():
-    # see https://neuralynx.com/software/NeuralynxDataFileFormats.pdf
-    csc_data_file_name = sys.argv[1]  # .ncs file
-    read_csc_file(csc_data_file_name)
-
-
-if __name__ == '__main__':
-    main()

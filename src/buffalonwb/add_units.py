@@ -1,14 +1,20 @@
-from nexfile import nexfile
-from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
+import sys
+#sys.path.insert(0,'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\nexfile')
+import nexfile
+#from exceptions import InconsistentInputException, UnsupportedInputException
+import numpy as np
 
-
+# ADD UNITS
+# From Ryan Ly
 def add_units(nwbfile, nex_file_name):
+
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
     file_header = file_data['FileHeader']  # dict of .nex file info
     writer_software = file_data['MetaData']['file']['writerSoftware']  # dict of name, version
 
     # first half of variables contains spike times, second half contains spike waveforms for each spike time
     num_vars = len(file_data['Variables'])
+    print('adding ' + str(num_vars) + ' units')
     start_var = round(num_vars / 2)  # read just the waveform variables
 
     # sanity checks
