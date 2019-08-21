@@ -19,7 +19,7 @@ def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc
 
     # time x 120
     # add the lfp metadata - some in the lab metadata and some in the electrical series
-    lfp_es = ElectricalSeries('LFP_data',
+    lfp_es = ElectricalSeries('ElectricalSeries',
                               lfp_data,
                               electrode_table_region,
                               timestamps=np.squeeze(lfp_timestamps),
@@ -30,8 +30,7 @@ def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc
     # put LFP data in ecephys
     # what is the most efficient/pythonic way to do this?
 
-    nwbfile.add_acquisition(pynwb.ecephys.LFP(electrical_series=lfp_es, name='LFP'))
-    proc_module.add_data_interface(pynwb.ecephys.LFP(electrical_series=lfp_es, name='LFP'))
+    proc_module.add(pynwb.ecephys.LFP(electrical_series=lfp_es, name='LFP'))
 
 
 # FUNCTIONS FOR PROCESSED DATA
