@@ -64,7 +64,7 @@ def main():
                       lab=metadata["lab"],
                       institution=metadata["institution"])
     electrode_table_region = add_electrodes(nwbfile, metadata)
-    proc_module = nwbfile.create_processing_module('processed_data', 'module for processed data')
+    proc_module = nwbfile.create_processing_module('ecephys', 'module for processed data')
 
     if skip_raw:
         print("skipping raw data...")
