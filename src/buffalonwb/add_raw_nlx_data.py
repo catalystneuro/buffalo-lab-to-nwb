@@ -22,8 +22,8 @@ def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrod
     ephys_ts = ElectricalSeries('raw_ephys',
                                 ephys_data,
                                 electrode_table_region,
-                                timestamps=ephys_timestamps,
-                                resolution=1/rate,
+                                starting_time=ephys_timestamps[0],
+                                rate=rate,
                                 comments="This is an electrical series",
                                 description="This is a recording from hippocamus")
     nwbfile.add_acquisition(ephys_ts)

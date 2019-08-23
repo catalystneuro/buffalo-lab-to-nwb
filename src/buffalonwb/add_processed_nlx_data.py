@@ -12,18 +12,24 @@ from tqdm import trange
 def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
     if iterator_flag:
         print("LFP adding via data chunk iterator")
-        lfp, lfp_timestamps, lfp_resolution = get_lfp_data(1, lfp_file_name)
+        lfp, lfp_timestamps, lfp_rate = get_lfp_data(1, lfp_file_name)
         lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name, num_electrodes), iter_axis=1)
     else:
-        lfp_data, lfp_timestamps, lfp_resolution = get_lfp_data(num_electrodes, lfp_file_name)
+        lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes, lfp_file_name)
+
+   # lfp_timestamps_sq = np.squeeze(lfp_timestamps)
+   # if 1/(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]) !=lfp_rate:
+   #     print("not equal to rate!!")
+   #     print(str(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]))
+   #     print(str(lfp_rate))
 
     # time x 120
     # add the lfp metadata - some in the lab metadata and some in the electrical series
     lfp_es = ElectricalSeries('ElectricalSeries',
                               lfp_data,
                               electrode_table_region,
-                              timestamps=np.squeeze(lfp_timestamps),
-                              resolution=lfp_resolution,
+                              starting_time=float(lfp_timestamps_sq[0]),
+                              rate=lfp_rate,
                               comments="LFP",
                               description="LFP")
 

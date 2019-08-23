@@ -2,9 +2,9 @@ from datetime import datetime
 import pytz
 from pynwb import NWBFile
 import math
-from pynwb import NWBHDF5IO
 import sys
 
+from pynwb import NWBHDF5IO
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
 from buffalonwb.add_behavior import add_behavior
@@ -92,9 +92,9 @@ def main():
             raw_io = NWBHDF5IO(out_file_raw, 'r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
-            with NWBHDF5IO(out_file_raw, mode='r') as raw_io:
-                raw_nwbfile_in = raw_io.read()
-                nwbfile_proc = raw_nwbfile_in.copy()
+            raw_io = NWBHDF5IO(out_file_raw, mode='r')
+            raw_nwbfile_in = raw_io.read()
+            nwbfile_proc = raw_nwbfile_in.copy()
             print('Copying NWB file ' + out_file_raw)
 
 
@@ -124,6 +124,7 @@ def main():
                 print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile)
                 print(nwbfile)
+        del raw_io
 
 
 # general tools
