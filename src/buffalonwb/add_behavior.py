@@ -4,7 +4,7 @@ import numpy as np
 from pynwb import TimeSeries
 
 
-def add_behavior(nwbfile, behavior_eye_file):
+def add_behavior_eye(nwbfile, behavior_eye_file):
     print("adding behavior")
     # process raw behavior
     behavior_file = loadmat(behavior_eye_file)
@@ -20,7 +20,7 @@ def add_behavior(nwbfile, behavior_eye_file):
                   "end_presentation": 101,
                   "successful_trial": 200}
 
-    # nlx eye movements 
+    # nlx eye movements
     nlxeye_ts = TimeSeries(name="nlxeye", data=behavior_file["nlxeye"], timestamps=behavior_file["nlxtme"])
     nwbfile.add_acquisition(nlxeye_ts)
 
@@ -102,7 +102,7 @@ def loadmat(filename):
 def process_behavior_calibration(nwbfile,session, data):
     # convert to floats
     # add calibration trials (session 1 & 2 )
-    # no time series data, everything is inside trials 
+    # no time series data, everything is inside trials
     num_trials = len(data["start_trial"])
     for t in range(0, num_trials):
         # add rest of calibration stuff
@@ -118,7 +118,7 @@ def process_behavior_calibration(nwbfile,session, data):
 
 
 def process_behavior(nwbfile,session, data, banana_flag, event_dict):
-    # 
+    #
 
     # process events to time stamps
     start_trial, end_trial, end_presentation, reward_on, reward_off, reward_data, reward_ts, success, right_trial, left_trial = process_events(
@@ -145,7 +145,7 @@ def process_behavior(nwbfile,session, data, banana_flag, event_dict):
                 # THIS IS BANANA TIME
                 end_trial[t] = end_trial[t] + 1000
 
-    # add time series 
+    # add time series
     # reward_ts = TimeSeries(name="reward_ts",data=reward_data, timestamps=reward_ts)
     # nwbfile.add_acquisition(reward_ts)
 
@@ -161,7 +161,7 @@ def process_behavior(nwbfile,session, data, banana_flag, event_dict):
 def process_events(events, events_ts, event_dict):
     # get events and time stamps and return timestamps of events
     # check input for invalid trial keys
-    # input checking on left and right trials 
+    # input checking on left and right trials
     # check number of trials
     start_trial = list_comp(events, events_ts, event_dict["new_trial"])
     end_trial = list_comp(events, events_ts, event_dict["end_trial"])
@@ -181,7 +181,7 @@ def process_events(events, events_ts, event_dict):
         elif events[e] == float(event_dict["reward_off"]):
             reward_data.append(0)
             reward_ts.append(events_ts[e])
-    # is right trial the opposite of left trial 
+    # is right trial the opposite of left trial
     right_trial = list_comp(events, events_ts, event_dict["right_trial"])
     left_trial = list_comp(events, events_ts, event_dict["left_trial"])
     success = list_comp(events, events_ts, event_dict["successful_trial"])
@@ -192,4 +192,3 @@ def list_comp(data, events_ts, key):
     idx = [i for i, x in enumerate(data) if x == key]
     ts = [events_ts[i] for i in idx]
     return ts
-
