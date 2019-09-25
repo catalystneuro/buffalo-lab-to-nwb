@@ -2,13 +2,44 @@ import scipy
 import scipy.io as spio
 import numpy as np
 from pynwb import TimeSeries
+from pynwb.behavior import Position
 
 
-def add_behavior_eye(nwbfile, behavior_eye_file):
+def add_behavior(nwbfile, behavior_file):
     print("adding behavior")
     # process raw behavior
-    behavior_file = loadmat(behavior_eye_file)
-    behavior_module = nwbfile.create_processing_module(name='behavior', description='preprocessed behavioral data')
+    behavior_data = loadmat(behavior_file)
+    behavior_module = nwbfile.create_processing_module(
+        name='behavior',
+        description='preprocessed behavioral data'
+    )
+
+    pos = Position(name='Position')
+    for epoch in range(1, 7):
+        if epoch > 2:
+            epoch_data = behavior_data["behavior"][epoch - 1]
+            pos.create_spatial_series(
+                name='Position_epoch_'+str(epoch),
+                data=np.array(epoch_data['posdat']),
+                reference_frame='',
+                timestamps=np.array(epoch_data['tme'])
+            )
+    behavior_module.add(pos)
+
+    # nlx eye movements
+    nlxeye_ts = TimeSeries(
+        name="nlxeye",
+        data=behavior_data["nlxeye"],
+        timestamps=behavior_data["nlxtme"]
+    )
+    nwbfile.add_acquisition(nlxeye_ts)
+
+    # trial columns
+    nwbfile.add_trial_column(
+        name='environment',
+        description='trial environment (calibration if calibration trial)'
+    )
+    # nwbfile.add_trial_column(name='trial_vars', description='trial variables - different between calibration and task')
 
     # event key dictionary
     event_dict = {"new_trial": 1000,
@@ -20,17 +51,9 @@ def add_behavior_eye(nwbfile, behavior_eye_file):
                   "end_presentation": 101,
                   "successful_trial": 200}
 
-    # nlx eye movements
-    nlxeye_ts = TimeSeries(name="nlxeye", data=behavior_file["nlxeye"], timestamps=behavior_file["nlxtme"])
-    nwbfile.add_acquisition(nlxeye_ts)
-
-    # trial columns
-    nwbfile.add_trial_column(name='environment', description='trial environment (calibration if calibration trial)')
-    # nwbfile.add_trial_column(name='trial_vars', description='trial variables - different between calibration and task')
-
     # process behavior here
     for epoch in range(1, 7):
-        epoch_data = behavior_file["behavior"][epoch - 1]
+        epoch_data = behavior_data["behavior"][epoch - 1]
         if epoch < 3:
             process_behavior_calibration(nwbfile, epoch, epoch_data)
         else:
@@ -111,10 +134,10 @@ def process_behavior_calibration(nwbfile,session, data):
                           stop_time=float(data["end_trial"][t][0]),
                           environment="calibration")  # ,
         # trial_vars=trial_data)
-    nwbfile.add_epoch(float(data["start_trial"][0][0]),
-                      float(data["end_trial"][num_trials - 1][0]),
-                      ["session: " + str(session), "envronment: calibraton"],
-                      [])
+    nwbfile.add_epoch(start_time=float(data["start_trial"][0][0]),
+                      stop_time=float(data["end_trial"][num_trials - 1][0]),
+                      tags=["session: " + str(session), "envronment: calibraton"],
+                      timeseries=[])
 
 
 def process_behavior(nwbfile,session, data, banana_flag, event_dict):
@@ -151,11 +174,14 @@ def process_behavior(nwbfile,session, data, banana_flag, event_dict):
 
     # add trials and epoch
     for t in range(0, num_trials):
-        nwbfile.add_trial(start_time=start_trial[t], stop_time=end_trial[t],
+        nwbfile.add_trial(start_time=start_trial[t],
+                          stop_time=end_trial[t],
                           environment=data["env"])  # , trial_vars=trial_data)
 
-    nwbfile.add_epoch(start_trial[0], end_trial[num_trials - 1],
-                      ['session: ' + str(session), 'envronment: ' + data["env"]], [])
+    nwbfile.add_epoch(start_time=start_trial[0],
+                      stop_time=end_trial[num_trials - 1],
+                      tags=['session: ' + str(session), 'envronment: ' + data["env"]],
+                      timeseries=[])
 
 
 def process_events(events, events_ts, event_dict):

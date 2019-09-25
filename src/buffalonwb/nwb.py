@@ -7,13 +7,13 @@ import sys
 from pynwb import NWBHDF5IO
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
-from buffalonwb.add_behavior import add_behavior_eye
+from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
 
 
 def main(metadata_file, lfp_mat_file=None, sorted_spikes_nex5_file=None,
-         behavior_eye_file=None, behavior_pos_file=None, raw_nlx_file=None,
-         skip_raw=True, skip_processed=True, lfp_iterator_flag=True, no_copy=True,
+         behavior_file=None, raw_nlx_file=None, skip_raw=True,
+         skip_processed=True, lfp_iterator_flag=True, no_copy=True,
          out_file_raw='buffalo_raw.nwb', out_file_processed='buffalo_processed.nwb'):
     """
     Main function for conversion from Buffalo's lab data to NWB.
@@ -23,8 +23,7 @@ def main(metadata_file, lfp_mat_file=None, sorted_spikes_nex5_file=None,
     metadata_file : str or path
     lfp_mat_file : str or path
     sorted_spikes_nex5_file : str or path
-    behavior_eye_file : str or path
-    behavior_pos_file : str or path
+    behavior_file : str or path
     raw_nlx_file : str or path
     skip_raw : boolean
     skip_processed : boolean
@@ -96,8 +95,8 @@ def main(metadata_file, lfp_mat_file=None, sorted_spikes_nex5_file=None,
 
 
         # BEHAVIOR (PROCESSED)
-        if behavior_eye_file is not None:
-            add_behavior_eye(nwbfile, behavior_eye_file)
+        if behavior_file is not None:
+            add_behavior(nwbfile, behavior_file)
 
         # PROCESSED COMPONENTS
         # UNITS
@@ -179,18 +178,18 @@ def add_electrodes(nwbfile, metadata):
 
 if __name__ == '__main__':
     """
-    Usage: python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_eye_file] [raw_nlx_file]
+    Usage: python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_file] [raw_nlx_file]
     """
 
     metadata_file = sys.argv[1] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
     lfp_mat_file = sys.argv[2]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
     sorted_spikes_nex5_file = sys.argv[3]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\SortedSpikes\\2017-04-27_11-41-21_sorted.nex5'
-    behavior_eye_file = sys.argv[4] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
+    behavior_file = sys.argv[4] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
     raw_nlx_file = sys.argv[5] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\RawCSCs\\CSC%.ncs'
     skip_raw = any([i == '-skipraw' for i in sys.argv])
     skip_processed = any([i == '-skipprocessed' for i in sys.argv])
     lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
     no_copy = any([i == '-dontcopy' for i in sys.argv])
 
-    main(metadata_file, lfp_mat_file, sorted_spikes_nex5_file, behavior_eye_file,
+    main(metadata_file, lfp_mat_file, sorted_spikes_nex5_file, behavior_file,
          raw_nlx_file, skip_raw, skip_processed, lfp_iterator_flag, no_copy)
