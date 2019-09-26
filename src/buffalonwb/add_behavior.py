@@ -5,12 +5,12 @@ from pynwb import TimeSeries
 from pynwb.behavior import Position, EyeTracking
 
 
-def add_behavior(nwbfile, behavior_file):
+def add_behavior(nwbfile, behavior_file, metadata_behavior):
     print("adding behavior")
     # process raw behavior
     behavior_data = loadmat(behavior_file)
     behavior_module = nwbfile.create_processing_module(
-        name='behavior',
+        name='Behavior',
         description='preprocessed behavioral data'
     )
 
@@ -25,20 +25,26 @@ def add_behavior(nwbfile, behavior_file):
             epoch_data = behavior_data["behavior"][epoch - 1]
             all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
+    # metadata for SpatialSeries stored in Position
+    meta_pos = [a for a in metadata_behavior['SpatialSeries']
+                if a['name']==metadata_behavior['Position']['spatial_series']][0]
     pos.create_spatial_series(
-        name='SpatialSeries_position',
+        name=meta_pos['name'],
         data=all_pos,
-        reference_frame='',
+        reference_frame=meta_pos['reference_frame'],
         timestamps=all_tme
     )
     behavior_module.add(pos)
 
     # nlx eye movements
-    nlxeye = EyeTracking()
+    nlxeye = EyeTracking('EyeTracking')
+    # metadata for SpatialSeries stored in EyeTracking
+    meta_et = [a for a in metadata_behavior['SpatialSeries']
+               if a['name']==metadata_behavior['EyeTracking']['spatial_series']][0]
     nlxeye.create_spatial_series(
-        name="SpatialSeries_eyetracking",
+        name=meta_et['name'],
         data=np.array(behavior_data["nlxeye"]).T,
-        reference_frame='',
+        reference_frame=meta_et['reference_frame'],
         timestamps=behavior_data["nlxtme"]
     )
     behavior_module.add(nlxeye)
