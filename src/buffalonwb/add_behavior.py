@@ -15,10 +15,12 @@ def add_behavior(nwbfile, behavior_file):
     )
 
     pos = Position(name='Position')
-    all_pos = np.array([])
-    all_tme = np.array([])
     for epoch in range(1, 7):
-        if epoch > 2:
+        if epoch == 3:
+            epoch_data = behavior_data["behavior"][epoch - 1]
+            all_pos = np.array(epoch_data['posdat'])
+            all_tme = np.array(epoch_data['tme'])
+        elif epoch > 3:
             epoch_data = behavior_data["behavior"][epoch - 1]
             all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
@@ -26,7 +28,7 @@ def add_behavior(nwbfile, behavior_file):
         name='SpatialSeries',
         data=all_pos,
         reference_frame='',
-        timestamps=all_tme)
+        timestamps=all_tme
     )
     behavior_module.add(pos)
 
