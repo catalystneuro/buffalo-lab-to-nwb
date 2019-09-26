@@ -15,15 +15,19 @@ def add_behavior(nwbfile, behavior_file):
     )
 
     pos = Position(name='Position')
+    all_pos = np.array([])
+    all_tme = np.array([])
     for epoch in range(1, 7):
         if epoch > 2:
             epoch_data = behavior_data["behavior"][epoch - 1]
-            pos.create_spatial_series(
-                name='Position_epoch_'+str(epoch),
-                data=np.array(epoch_data['posdat']),
-                reference_frame='',
-                timestamps=np.array(epoch_data['tme'])
-            )
+            all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
+            all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
+    pos.create_spatial_series(
+        name='SpatialSeries',
+        data=all_pos,
+        reference_frame='',
+        timestamps=all_tme)
+    )
     behavior_module.add(pos)
 
     # nlx eye movements
