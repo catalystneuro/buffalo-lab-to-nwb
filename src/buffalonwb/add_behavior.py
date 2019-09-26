@@ -2,7 +2,7 @@ import scipy
 import scipy.io as spio
 import numpy as np
 from pynwb import TimeSeries
-from pynwb.behavior import Position
+from pynwb.behavior import Position, EyeTracking
 
 
 def add_behavior(nwbfile, behavior_file):
@@ -14,6 +14,7 @@ def add_behavior(nwbfile, behavior_file):
         description='preprocessed behavioral data'
     )
 
+    # Player Position
     pos = Position(name='Position')
     for epoch in range(1, 7):
         if epoch == 3:
@@ -25,7 +26,7 @@ def add_behavior(nwbfile, behavior_file):
             all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
     pos.create_spatial_series(
-        name='SpatialSeries',
+        name='SpatialSeries_position',
         data=all_pos,
         reference_frame='',
         timestamps=all_tme
@@ -33,12 +34,14 @@ def add_behavior(nwbfile, behavior_file):
     behavior_module.add(pos)
 
     # nlx eye movements
-    nlxeye_ts = TimeSeries(
-        name="nlxeye",
-        data=behavior_data["nlxeye"],
+    nlxeye = EyeTracking()
+    nlxeye.create_spatial_series(
+        name="SpatialSeries_eyetracking",
+        data=np.array(behavior_data["nlxeye"]).T,
+        reference_frame='',
         timestamps=behavior_data["nlxtme"]
     )
-    nwbfile.add_acquisition(nlxeye_ts)
+    behavior_module.add(nlxeye)
 
     # trial columns
     nwbfile.add_trial_column(
