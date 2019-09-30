@@ -38,14 +38,10 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     """
 
     # kwargs
-    if 'skip_raw' not in kwargs:
-        skip_raw = True
-    if 'skip_processed' not in kwargs:
-        skip_processed = False
-    if 'lfp_iterator_flag' not in kwargs:
-        lfp_iterator_flag = True
-    if 'no_copy' not in kwargs:
-        no_copy = True
+    skip_raw = kwargs['skip_raw'] if 'skip_raw' in kwargs else True
+    skip_processed = kwargs['skip_processed'] if 'skip_processed' in kwargs else False
+    lfp_iterator_flag = kwargs['lfp_iterator_flag'] if 'lfp_iterator_flag' in kwargs else True
+    no_copy = kwargs['no_copy'] if 'no_copy' not in kwargs else True
 
     # Source files
     raw_nlx_path = None
@@ -211,32 +207,34 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
     return electrode_table_region
 
 
+# If called from terminal
 if __name__ == '__main__':
     """
-    Usage: python nwb.py [lfp_mat_file] [sorted_spikes_nex5_file] [behavior_file]
-    [raw_nlx_file] [output_file] [metadata_file]
+    Usage: python conversion_module.py [raw_nlx_dir] [lfp_mat_dir]
+    [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file]
+    [-skipraw] [-skipprocessed] [-lfpiterator] [-dontcopy]
     """
     import sys
 
-    f1 = sys.argv[1]
-    f2 = sys.argv[2]
-    f3 = sys.argv[3]
-    f4 = sys.argv[4]
+    source_paths = {
+        'raw Nlx': {'type': 'dir', 'path': sys.argv[1]},
+        'processed Nlx': {'type': 'dir', 'path': sys.argv[2]},
+        'sorted spikes': {'type': 'file', 'path': sys.argv[3]},
+        'processed behavior': {'type': 'file', 'path': sys.argv[4]}
+    }
+
     f_nwb = sys.argv[5]
     metafile = sys.argv[6]
-    conversion_function(f1, f2, f3, f4,
-                        f_nwb=f_nwb,
-                        metafile=metafile)
 
-    # metadata_file = sys.argv[1] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
-    # lfp_mat_file = sys.argv[2]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
-    # sorted_spikes_nex5_file = sys.argv[3]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\SortedSpikes\\2017-04-27_11-41-21_sorted.nex5'
-    # behavior_file = sys.argv[4] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedBehavior\\MatFile_2017-04-27_11-41-21.mat'
-    # raw_nlx_file = sys.argv[5] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\RawCSCs\\CSC%.ncs'
-    # skip_raw = any([i == '-skipraw' for i in sys.argv])
-    # skip_processed = any([i == '-skipprocessed' for i in sys.argv])
-    # lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
-    # no_copy = any([i == '-dontcopy' for i in sys.argv])
-    #
-    # main(metadata_file, lfp_mat_file, sorted_spikes_nex5_file, behavior_file,
-    #      raw_nlx_file, skip_raw, skip_processed, lfp_iterator_flag, no_copy)
+    skip_raw = any([i == '-skipraw' for i in sys.argv])
+    skip_processed = any([i == '-skipprocessed' for i in sys.argv])
+    lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
+    no_copy = any([i == '-dontcopy' for i in sys.argv])
+
+    conversion_function(source_paths=source_paths,
+                        f_nwb=f_nwb,
+                        metafile=metafile,
+                        skip_raw=skip_raw,
+                        skip_processed=skip_processed,
+                        lfp_iterator_flag=lfp_iterator_flag,
+                        no_copy=no_copy)
