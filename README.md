@@ -18,13 +18,12 @@ Here's an example: we'll grab the data from the same experiment but stored in di
 from buffalonwb.conversion_module import conversion_function
 
 source_paths = {}
-source_paths['raw Nlx'] = {'type': 'dir', 'path': ''}
-source_paths['processed Nlx'] = {'type': 'dir', 'path': ''}
-source_paths['processed behavior'] = {'type': 'file', 'path': ''}
-source_paths['sorted spikes'] = {'type': 'file', 'path': ''}
+source_paths['raw Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
+source_paths['processed Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
+source_paths['processed behavior'] = {'type': 'file', 'path': PATH_TO_FILE}
+source_paths['sorted spikes'] = {'type': 'file', 'path': PATH_TO_FILE}
 
 f_nwb = 'buffalo.nwb'
-
 metafile = 'metafile.yml'
 
 conversion_function(source_paths=source_paths,
@@ -43,18 +42,19 @@ Similarly, the conversion function can be called from the command line in termin
 $ python conversion_module.py [raw_nlx_dir] [lfp_mat_dir]
   [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file]
   [-skipraw] [-skipprocessed] [-lfpiterator] [-dontcopy]
-  
-# IMPORTANT
-# [raw_nlx_dir] and [lfp_mat_dir] should be paths to directories
-# [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file] should be paths to 
-
-# optional inputs
-# add these after the positional arguments to use additional options
-# "-skipraw" (will skip adding raw data to nwb file)
-# "-skipprocessed" (will skip adding processed data to nwb file)
-# "-lfpiterator" (change lfp data method to dataChunkIterator (for large data))
-# "-dontcopy" (ignore broken copy method by going straight to output file)
 ```
+
+> IMPORTANT:  <br/>
+> [raw_nlx_dir] and [lfp_mat_dir] should be paths to directories  <br/>
+> [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file] should be paths to files  <br/>
+>
+> optional inputs
+> add these after the positional arguments to use additional options <br/>
+> "-skipraw" (will skip adding raw data to nwb file) <br/>
+> "-skipprocessed" (will skip adding processed data to nwb file) <br/>
+> "-lfpiterator" (change lfp data method to dataChunkIterator (for large data)) <br/>
+> "-dontcopy" (ignore broken copy method by going straight to output file) <br/>
+
 <br/>
 
 **3. Graphical User Interface:** <br/>
