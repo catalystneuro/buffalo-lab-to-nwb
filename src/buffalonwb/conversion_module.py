@@ -9,17 +9,21 @@ from pathlib import Path
 import yaml
 import pytz
 import math
+import os
 
 
-def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
+def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     """
     Main function for conversion from Buffalo's lab data to NWB.
 
     Parameters
     ----------
-    *f_sources : sequence of str
-        Source files, in this order: lfp_mat_file, sorted_spikes_nex5_file,
-        behavior_file, raw_nlx_file
+    source_paths : dict
+        Dictionary with paths to source files/directories. e.g.:
+        {'raw Nlx': {'type': 'dir', 'path': ''},
+         'processed Nlx': {'type': 'dir', 'path': ''},
+         'sorted spikes',: {'type': 'file', 'path': ''},
+         'processed behavior': {'type': 'file', 'path': ''}}
     f_nwb : str
         Stem to output file. Two files might be produced using this stem:
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
@@ -44,39 +48,52 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
         no_copy = True
 
     # Source files
-    for i, f in enumerate(f_sources):
-        if i == 0:
-            lfp_mat_file = Path(f)
-        elif i == 1:
-            sorted_spikes_nex5_file = Path(f)
-        elif i == 2:
-            behavior_file = Path(f)
-        elif i == 3:
-            raw_nlx_file = Path(f)
+    raw_nlx_path = None
+    lfp_mat_path = None
+    behavior_file = None
+    sorted_spikes_nex5_file = None
+    for k, v in source_paths.items():
+        if source_paths[k]['path'] != '':
+            if k == 'raw Nlx':
+                raw_nlx_path = Path(source_paths[k]['path'])
+            if k == 'processed Nlx':
+                lfp_mat_path = Path(source_paths[k]['path'])
+            if k == 'processed behavior':
+                behavior_file = Path(source_paths[k]['path'])
+            if k == 'sorted spikes':
+                sorted_spikes_nex5_file = Path(source_paths[k]['path'])
+        # lfp_mat_file = Path(f)
+        # raw_nlx_file = Path(f)
 
     # Output files
-    out_file_raw = f_nwb.stem + '_raw.nwb'
-    out_file_processed = f_nwb.stem + '_processed.nwb'
+    nwbpath = Path(f_nwb).parent
+    out_file_raw = str(nwbpath.joinpath(Path(f_nwb).stem + '_raw.nwb'))
+    out_file_processed = str(nwbpath.joinpath(Path(f_nwb).stem + '_processed.nwb'))
 
     # Load metadata from YAML file
     with open(metafile) as f:
         metadata = yaml.safe_load(f)
 
-    # The reference time for timestamps - this is probably the same as session start time but pretty sure Yoni said it's the first blink
-    timestamps_reference_time = datetime.now()
-    timezone = pytz.timezone('US/Pacific')
-
     # Number of electrodes
-    nChannels = 124
+    if lfp_mat_path:
+        nChannels = len(os.listdir(lfp_mat_path))
+    elif raw_nlx_path:
+        nChannels = len(os.listdir(lfp_mat_path)) // 2
+    else:
+        raise Exception('The path to either raw or processed files must be provided '
+                        'for the number of channels to be found.')
+
+    # Check if timestamps_reference_time was given in metadata
+    if "timestamps_reference_time" not in metadata:
+        timezone = pytz.timezone('US/Pacific')
+        metadata["timestamps_reference_time"] = timezone.localize(datetime.now())
 
     # MAKE NWB FILE
-    metadata["session_start_time"] = timezone.localize(session_start_time)
-    metadata["timestamps_reference_time"] = timezone.localize(timestamps_reference_time)
     nwbfile = NWBFile(session_description=metadata['NWBFile']["session_description"],
                       identifier=metadata['NWBFile']["identifier"],
                       session_id=metadata['NWBFile']["session_id"],
                       session_start_time=metadata['NWBFile']['session_start_time'],
-                      timestamps_reference_time=timestamps_reference_time,
+                      timestamps_reference_time=metadata["timestamps_reference_time"],
                       notes=metadata['NWBFile']["notes"],
                       stimulus_notes=metadata['NWBFile']["stimulus_notes"],
                       data_collection=metadata['NWBFile']["data_collection"],
@@ -97,8 +114,7 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
     if skip_raw:
         print("skipping raw data...")
     if not skip_raw:
-        # RAW COMPONENTS
-        # RAW DATA
+        # Raw data
         add_raw_nlx_data(
             nwbfile=nwbfile,
             raw_nlx_file=raw_nlx_file,
@@ -106,7 +122,7 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
             num_electrodes=nChannels
         )
 
-        # WRITE RAW
+        # Write raw
         with NWBHDF5IO(out_file_raw, mode='w') as io:
             print('Writing to file: ' + out_file_raw)
             io.write(nwbfile)
@@ -128,7 +144,7 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
         if behavior_file is not None:
             add_behavior(
                 nwbfile=nwbfile_proc,
-                behavior_file=behavior_file,
+                behavior_file=str(behavior_file),
                 metadata_behavior=metadata['Behavior']
             )
 
@@ -138,14 +154,15 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
             add_units(nwbfile_proc, sorted_spikes_nex5_file)
 
         # LFP
-        if lfp_mat_file is not None:
+        if lfp_mat_path is not None:
             add_lfp(
                 nwbfile=nwbfile_proc,
-                lfp_file_name=lfp_mat_file,
+                lfp_path=lfp_mat_path,
                 electrode_table_region=electrode_table_region,
                 num_electrodes=nChannels,
                 proc_module=proc_module,
-                iterator_flag=lfp_iterator_flag)
+                iterator_flag=lfp_iterator_flag
+            )
 
         # WRITE PROCESSED
         if no_copy:
@@ -159,21 +176,7 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
                 io.write(nwbfile)
                 print(nwbfile)
         if 'raw_io' in locals():
-            del raw_io
-
-
-# # general tools
-# def read_metadata(metadata_file):
-#     d = {}
-#     with open(metadata_file) as f:
-#         for line in f:
-#             if '#' in line or not line.strip(): continue
-#             key, val = line.replace("\r", "").replace("\n", "").split("=")
-#             d[key] = val
-#     # manually convert keywords and num_electrodes to list and int respectively
-#     d["keywords"] = list(d["keywords"].split(","))
-#     d["num_electrodes"] = int(d["num_electrodes"])
-#     return d
+            raw_io.close()
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):

@@ -37,7 +37,7 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     behavior_module.add(pos)
 
     # nlx eye movements
-    nlxeye = EyeTracking('EyeTracking')
+    nlxeye = EyeTracking(name='EyeTracking')
     # metadata for SpatialSeries stored in EyeTracking
     meta_et = [a for a in metadata_behavior['SpatialSeries']
                if a['name']==metadata_behavior['EyeTracking']['spatial_series']][0]
