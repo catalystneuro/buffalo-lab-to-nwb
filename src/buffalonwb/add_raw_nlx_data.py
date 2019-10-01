@@ -21,7 +21,8 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
     data = raw_generator(raw_nlx_path, num_electrodes)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
-                                   maxshape=(len(raw_ts), num_electrodes))
+                                   maxshape=(len(raw_ts), num_electrodes),
+                                   dtype=np.dtype('int16'))
     ephys_timestamps = raw_ts.astype(np.float32)
 
     ephys_ts = ElectricalSeries(name='raw_ephys',
@@ -41,11 +42,7 @@ def raw_generator(raw_nlx_path, num_electrodes):
     for i in trange(0, num_electrodes, desc='writing raw data'):
         file_name = raw_nlx_path.joinpath(data_files[i])
         raw_header, raw_ts, raw_data = read_csc_file(file_name)
-        print('Data shape: ', raw_data.shape)
-        print('Number of files: ', len(data_files))
-        print('Number of electrodes: ', num_electrodes)
-        print('Iteration: ', i)
-        yield raw_data
+        yield raw_data.astype(np.int16)
     return
 
 
