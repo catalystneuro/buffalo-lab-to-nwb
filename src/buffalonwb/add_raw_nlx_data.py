@@ -16,6 +16,7 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
     data_files = [i for i in all_files if '_' not in i]
 
     raw_header, raw_ts, data = read_csc_file(raw_nlx_path.joinpath(data_files[0]))
+    conversion_factor = raw_header['ADBitVolts']
 
     rate = float(raw_header["SamplingFrequency"])
     data = raw_generator(raw_nlx_path, num_electrodes)
@@ -30,6 +31,7 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
                                 electrodes=electrode_table_region,
                                 starting_time=ephys_timestamps[0],
                                 rate=rate,
+                                conversion=conversion_factor,
                                 comments="This is an electrical series",
                                 description="This is a recording from hippocamus")
     nwbfile.add_acquisition(ephys_ts)
