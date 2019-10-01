@@ -1,4 +1,6 @@
 from pynwb import NWBHDF5IO, NWBFile
+from pynwb import get_manager
+
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
 from buffalonwb.add_behavior import add_behavior
@@ -42,10 +44,6 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     skip_processed = kwargs['skip_processed'] if 'skip_processed' in kwargs else False
     lfp_iterator_flag = kwargs['lfp_iterator_flag'] if 'lfp_iterator_flag' in kwargs else True
     no_copy = kwargs['no_copy'] if 'no_copy' in kwargs else True
-
-    skip_raw = False
-    skip_processed = True
-    no_copy = True
 
     # Source files
     raw_nlx_path = None
@@ -107,7 +105,6 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         metadata_ecephys=metadata['Ecephys'],
         num_electrodes=nChannels
     )
-    proc_module = nwbfile.create_processing_module('Ecephys', 'module for processed data')
 
     if skip_raw:
         print("skipping raw data...")
@@ -156,9 +153,7 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
             add_lfp(
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
-                electrode_table_region=electrode_table_region,
                 num_electrodes=nChannels,
-                proc_module=proc_module,
                 iterator_flag=lfp_iterator_flag
             )
 
@@ -166,12 +161,12 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         if no_copy:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
                 print('Writing to file: ' + out_file_processed)
-                io.write(nwbfile)
+                io.write(nwbfile_proc)
                 print(nwbfile)
         else:
             with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
                 print('Writing to file: ' + out_file_processed)
-                io.write(nwbfile)
+                io.write(nwbfile_proc)
                 print(nwbfile)
         if 'raw_io' in locals():
             raw_io.close()

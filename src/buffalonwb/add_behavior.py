@@ -91,11 +91,9 @@ def loadmat(filename):
         todict is called to change them to nested dictionaries
         '''
         for key in d:
-            print(key)
             if isinstance(d[key], spio.matlab.mio5_params.mat_struct):
                 d[key] = _todict(d[key])
             if key == "behavior":
-                print("tolist!")
                 d[key] = _tolist(d[key])
         return d
 
