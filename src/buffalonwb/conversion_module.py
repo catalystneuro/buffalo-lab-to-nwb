@@ -41,7 +41,11 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     skip_raw = kwargs['skip_raw'] if 'skip_raw' in kwargs else True
     skip_processed = kwargs['skip_processed'] if 'skip_processed' in kwargs else False
     lfp_iterator_flag = kwargs['lfp_iterator_flag'] if 'lfp_iterator_flag' in kwargs else True
-    no_copy = kwargs['no_copy'] if 'no_copy' not in kwargs else True
+    no_copy = kwargs['no_copy'] if 'no_copy' in kwargs else True
+
+    skip_raw = False
+    skip_processed = True
+    no_copy = True
 
     # Source files
     raw_nlx_path = None
@@ -58,8 +62,6 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
                 behavior_file = Path(source_paths[k]['path'])
             if k == 'sorted spikes':
                 sorted_spikes_nex5_file = Path(source_paths[k]['path'])
-        # lfp_mat_file = Path(f)
-        # raw_nlx_file = Path(f)
 
     # Output files
     nwbpath = Path(f_nwb).parent
@@ -74,7 +76,7 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     if lfp_mat_path:
         nChannels = len(os.listdir(lfp_mat_path))
     elif raw_nlx_path:
-        nChannels = len(os.listdir(lfp_mat_path)) // 2
+        nChannels = len(os.listdir(raw_nlx_path)) // 2
     else:
         raise Exception('The path to either raw or processed files must be provided '
                         'for the number of channels to be found.')
@@ -113,7 +115,7 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         # Raw data
         add_raw_nlx_data(
             nwbfile=nwbfile,
-            raw_nlx_file=raw_nlx_file,
+            raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
             num_electrodes=nChannels
         )

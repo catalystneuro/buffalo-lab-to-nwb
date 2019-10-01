@@ -15,4 +15,4 @@ source_paths['processed behavior'] = {'type': 'file', 'path': ''}
 source_paths['sorted spikes'] = {'type': 'file', 'path': ''}
 
 nwbn_conversion_gui(metafile=metafile, conversion_module=conversion_module,
-                    source_paths=source_paths, show_add_del=True)
+                    source_paths=source_paths)

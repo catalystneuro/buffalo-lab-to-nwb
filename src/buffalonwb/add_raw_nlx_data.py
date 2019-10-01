@@ -10,18 +10,23 @@ from pynwb.ecephys import ElectricalSeries
 from tqdm import trange
 
 
-def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrodes):
+def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrodes):
     print("adding raw nlx data")
-    raw_header, raw_ts, data = read_csc_file(str(1).join(raw_nlx_file.split('%')))
+    all_files = os.listdir(raw_nlx_path)
+    data_files = [i for i in all_files if '_' not in i]
 
-    rate = raw_header["SamplingFrequency"]
-    data = raw_generator(raw_nlx_file, num_electrodes)
-    ephys_data = DataChunkIterator(data=data, iter_axis=1, maxshape=(len(raw_ts), num_electrodes))
-    ephys_timestamps = raw_ts
+    raw_header, raw_ts, data = read_csc_file(raw_nlx_path.joinpath(data_files[0]))
 
-    ephys_ts = ElectricalSeries('raw_ephys',
-                                ephys_data,
-                                electrode_table_region,
+    rate = float(raw_header["SamplingFrequency"])
+    data = raw_generator(raw_nlx_path, num_electrodes)
+    ephys_data = DataChunkIterator(data=data,
+                                   iter_axis=1,
+                                   maxshape=(len(raw_ts), num_electrodes))
+    ephys_timestamps = raw_ts.astype(np.float32)
+
+    ephys_ts = ElectricalSeries(name='raw_ephys',
+                                data=ephys_data,
+                                electrodes=electrode_table_region,
                                 starting_time=ephys_timestamps[0],
                                 rate=rate,
                                 comments="This is an electrical series",
@@ -29,11 +34,17 @@ def add_raw_nlx_data(nwbfile, raw_nlx_file, electrode_table_region, num_electrod
     nwbfile.add_acquisition(ephys_ts)
 
 
-def raw_generator(raw_nlx_file, num_electrodes):
+def raw_generator(raw_nlx_path, num_electrodes):
+    all_files = os.listdir(raw_nlx_path)
+    data_files = [i for i in all_files if '_' not in i]
     #  generate raw data chunks for iterator
-    for x in trange(1, num_electrodes+1, desc='writing raw data'):
-        file_name = str(x).join(raw_nlx_file.split("%"))
+    for i in trange(0, num_electrodes, desc='writing raw data'):
+        file_name = raw_nlx_path.joinpath(data_files[i])
         raw_header, raw_ts, raw_data = read_csc_file(file_name)
+        print('Data shape: ', raw_data.shape)
+        print('Number of files: ', len(data_files))
+        print('Number of electrodes: ', num_electrodes)
+        print('Iteration: ', i)
         yield raw_data
     return
 
