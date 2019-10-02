@@ -6,6 +6,7 @@ from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputEx
 def add_units(nwbfile, nex_file_name):
 
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
+
     file_header = file_data['FileHeader']  # dict of .nex file info
     writer_software = file_data['MetaData']['file']['writerSoftware']  # dict of name, version
 
@@ -33,8 +34,6 @@ def add_units(nwbfile, nex_file_name):
         if (var_ts_only['Timestamps'] != var['Timestamps']).any():
             raise InconsistentInputException()
         if var['Timestamps'].shape != (var_header['Count'], ):
-            raise InconsistentInputException()
-        if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
         if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
