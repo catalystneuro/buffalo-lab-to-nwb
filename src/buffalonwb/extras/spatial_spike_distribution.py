@@ -55,7 +55,7 @@ def plot_spatial_spike_distribution(nwbfile, unit_id, save_fig=False):
     Plots the spatial distribution of spikes.
     """
     spkts = nwbfile.units['spike_times'][unit_id][:]
-    pos_ts = nwbfile.processing['Behavior'].data_interfaces['Position'].spatial_series['SpatialSeries_position'].timestamps[:] / 1000
+    pos_ts = nwbfile.processing['behavior'].data_interfaces['Position'].spatial_series['SpatialSeries_position'].timestamps[:] / 1000
 
     idxs = get_indexes_fast(spkts, pos_ts)
 
