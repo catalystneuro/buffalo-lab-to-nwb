@@ -141,7 +141,7 @@ def get_lfp_data(num_electrodes, lfp_path):
 def lfp_generator(lfp_path, num_electrodes):
     all_files = os.listdir(lfp_path)
     # generate lfp data chunks
-    for i in trange(0, num_electrodes, desc='writing LFP'):
+    for i in trange(num_electrodes, desc='writing LFP'):
         file_name = lfp_path.joinpath(all_files[i])
         processed_data = MH_process_nlx_mat_file(file_name)
         lfp_data = processed_data["lfp"]
