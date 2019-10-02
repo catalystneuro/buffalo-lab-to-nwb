@@ -59,7 +59,7 @@ def plot_spatial_spike_distribution(nwbfile, unit_id, save_fig=False):
 
     idxs = get_indexes_fast(spkts, pos_ts)
 
-    pos3 = nwbfile.processing['Behavior'].data_interfaces['Position'].spatial_series['SpatialSeries_position'].data[:]
+    pos3 = nwbfile.processing['behavior'].data_interfaces['Position'].spatial_series['SpatialSeries_position'].data[:]
     pos = np.array([[p[0], p[2]] for p in pos3])
     nid = len(idxs)
     xr = (np.random.rand(nid)-.5)/2
