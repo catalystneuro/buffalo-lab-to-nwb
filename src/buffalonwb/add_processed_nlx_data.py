@@ -9,7 +9,7 @@ from buffalonwb.exceptions import UnexpectedInputException
 from tqdm import trange
 
 
-def add_lfp(nwbfile, lfp_path, num_electrodes, iterator_flag):
+def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
     if iterator_flag:
         print("LFP adding via data chunk iterator")
         lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1, lfp_path=lfp_path)
@@ -29,7 +29,7 @@ def add_lfp(nwbfile, lfp_path, num_electrodes, iterator_flag):
     lfp_es = ElectricalSeries(
         name='ElectricalSeries_lfp',
         data=lfp_data,
-        electrodes=nwbfile.acquisition['raw_ephys'].electrodes,
+        electrodes=electrodes,
         starting_time=float(lfp_timestamps_sq[0]),
         rate=lfp_rate,
         comments="LFP",

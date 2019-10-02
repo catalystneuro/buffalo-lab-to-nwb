@@ -1,5 +1,5 @@
+import pynwb
 from pynwb import NWBHDF5IO, NWBFile
-from pynwb import get_manager
 
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
@@ -126,13 +126,14 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     if skip_processed:
         print("skipping processed data...")
     if not skip_processed:
-        if no_copy:
+        if no_copy or skip_raw:
             nwbfile_proc = nwbfile
         else:
             # copy from raw to maintain file linkage
             raw_io = NWBHDF5IO(out_file_raw, mode='r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
+            electrode_table_region = nwbfile_proc.acquisition['raw_ephys'].electrodes
             print('Copying NWB file ' + out_file_raw)
 
         # BEHAVIOR (PROCESSED)
@@ -146,7 +147,10 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         # PROCESSED COMPONENTS
         # UNITS
         if sorted_spikes_nex5_file is not None:
-            add_units(nwbfile_proc, sorted_spikes_nex5_file)
+            add_units(
+                nwbfile=nwbfile_proc,
+                nex_file_name=sorted_spikes_nex5_file
+            )
 
         # LFP
         if lfp_mat_path is not None:
@@ -154,11 +158,12 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
                 num_electrodes=nChannels,
+                electrodes=electrode_table_region,
                 iterator_flag=lfp_iterator_flag
             )
 
         # WRITE PROCESSED
-        if no_copy:
+        if no_copy or skip_raw:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
                 print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile_proc)
