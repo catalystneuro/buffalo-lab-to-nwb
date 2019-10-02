@@ -37,7 +37,7 @@ def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
     )
 
     proc_module = nwbfile.create_processing_module(
-        name='Ecephys',
+        name='ecephys',
         description='module for processed data'
     )
     # Store LFP data in ecephys
