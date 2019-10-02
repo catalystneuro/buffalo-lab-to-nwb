@@ -41,7 +41,7 @@ def raw_generator(raw_nlx_path, num_electrodes):
     all_files = os.listdir(raw_nlx_path)
     data_files = [i for i in all_files if '_' not in i]
     #  generate raw data chunks for iterator
-    for i in trange(0, num_electrodes, desc='writing raw data'):
+    for i in trange(num_electrodes, desc='writing raw data'):
         file_name = raw_nlx_path.joinpath(data_files[i])
         raw_header, raw_ts, raw_data = read_csc_file(file_name)
         yield raw_data.astype(np.int16)
