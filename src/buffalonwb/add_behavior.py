@@ -10,7 +10,7 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     # process raw behavior
     behavior_data = loadmat(behavior_file)
     behavior_module = nwbfile.create_processing_module(
-        name='Behavior',
+        name='behavior',
         description='preprocessed behavioral data'
     )
 
