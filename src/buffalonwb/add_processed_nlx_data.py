@@ -130,7 +130,7 @@ def get_lfp_data(num_electrodes, lfp_path):
     ts = processed["lfp_ts"]
     fs = processed["lfp_Fs"]
     # check if ts are all the same
-    for i in trange(0, num_electrodes, desc='reading LFP'):
+    for i in trange(num_electrodes, desc='reading LFP'):
         file_name = lfp_path.joinpath(all_files[i])
         processed_file = MH_process_nlx_mat_file(file_name)
         if processed_file:
