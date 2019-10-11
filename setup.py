@@ -20,8 +20,8 @@ setup_args = {
     'long_description': readme,
     'long_description_content_type': 'text/x-rst; charset=UTF-8',
     'author': 'Maija Honig, Ryan Ly, Ben Dichter',
-    'author_email': 'rly@lbl.gov',
-    'url': 'https://github.com/hdmf-dev/hdmf',
+    'author_email': 'ben.dichter@gmail.com',
+    'url': 'https://github.com/ben-dichter-consulting/buffalo-lab-data-to-nwb',
     'license': "BSD",
     'install_requires':
     [
