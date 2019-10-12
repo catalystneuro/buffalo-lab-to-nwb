@@ -17,7 +17,7 @@ Here's an example: we'll grab the data from the same experiment but stored in di
 ```python
 from buffalonwb.conversion_module import conversion_function
 
-source_paths = {}
+source_paths = dict()
 source_paths['raw Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
 source_paths['processed Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
 source_paths['processed behavior'] = {'type': 'file', 'path': PATH_TO_FILE}

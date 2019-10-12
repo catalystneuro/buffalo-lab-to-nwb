@@ -3,12 +3,9 @@ from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputEx
 
 
 # From Ryan Ly
-def add_units(nwbfile, nex_file_name):
+def add_units(nwbfile, nex_file_name, include_waveforms=False):
 
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
-
-    file_header = file_data['FileHeader']  # dict of .nex file info
-    writer_software = file_data['MetaData']['file']['writerSoftware']  # dict of name, version
 
     # first half of variables contains spike times, second half contains spike waveforms for each spike time
     num_vars = len(file_data['Variables'])
@@ -73,12 +70,16 @@ def add_units(nwbfile, nex_file_name):
     nwbfile.add_unit_column('nex_var_version', 'variable version in the NEX5 file')
 
     # since waveforms are not a 1:1 mapping per unit, use table indexing
-    nwbfile.add_unit_column('waveforms', 'waveforms for each spike', index=True)
+    if include_waveforms:
+        nwbfile.add_unit_column('waveforms', 'waveforms for each spike', index=True)
 
     for i in range(start_var, num_vars):
         var = file_data['Variables'][i]
         var_header = var['Header']
-        nwbfile.add_unit(electrodes=(1,),
+        kwargs = dict()
+        if include_waveforms:
+            kwargs.update(waveforms=var['WaveformValues'])
+        nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
                          name=var_header['Name'],
                          spike_times=var['Timestamps'],
                          pre_threshold_samples=var_header['PreThrTime'],
@@ -86,4 +87,4 @@ def add_units(nwbfile, nex_file_name):
                          num_spikes=var_header['Count'],
                          sampling_rate=var_header['SamplingRate'],
                          nex_var_version=var_header['Version'],
-                         waveforms=var['WaveformValues'])
+                         **kwargs)

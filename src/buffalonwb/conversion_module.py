@@ -14,7 +14,8 @@ import math
 import os
 
 
-def conversion_function(source_paths, f_nwb, metafile, **kwargs):
+def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_processed=False,
+                        lfp_iterator_flag=True, no_copy=True):
     """
     Main function for conversion from Buffalo's lab data to NWB.
 
@@ -31,19 +32,7 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
     metadata_file : str or path
         Yaml metadata file.
-    **kwargs :
-        Optional boolean keyword arguments:
-        skip_raw : boolean
-        skip_processed : boolean
-        lfp_iterator_flag : boolean,
-        no_copy : boolean
     """
-
-    # kwargs
-    skip_raw = kwargs['skip_raw'] if 'skip_raw' in kwargs else True
-    skip_processed = kwargs['skip_processed'] if 'skip_processed' in kwargs else False
-    lfp_iterator_flag = kwargs['lfp_iterator_flag'] if 'lfp_iterator_flag' in kwargs else True
-    no_copy = kwargs['no_copy'] if 'no_copy' in kwargs else True
 
     # Source files
     raw_nlx_path = None
@@ -147,10 +136,7 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         # PROCESSED COMPONENTS
         # UNITS
         if sorted_spikes_nex5_file is not None:
-            add_units(
-                nwbfile=nwbfile_proc,
-                nex_file_name=sorted_spikes_nex5_file
-            )
+            add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
 
         # LFP
         if lfp_mat_path is not None:

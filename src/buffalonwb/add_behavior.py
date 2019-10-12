@@ -1,7 +1,6 @@
 import scipy
 import scipy.io as spio
 import numpy as np
-from pynwb import TimeSeries
 from pynwb.behavior import Position, EyeTracking
 
 
@@ -27,7 +26,7 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
     # metadata for SpatialSeries stored in Position
     meta_pos = [a for a in metadata_behavior['SpatialSeries']
-                if a['name']==metadata_behavior['Position']['spatial_series']][0]
+                if a['name'] == metadata_behavior['Position']['spatial_series']][0]
     pos.create_spatial_series(
         name=meta_pos['name'],
         data=all_pos,
