@@ -1,4 +1,4 @@
-﻿"""
+"""
 To read .nex or .nex5 files, use the following code:
     import nexfile
     reader = nexfile.Reader()
