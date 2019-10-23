@@ -5,8 +5,9 @@ from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputExc
 
 
 """
-There are 124 data files, CSC1_ex.mat to CSC124_ex.mat. Each file seems to represent the spike times and waveforms
-after thresholding and the downsampled LFP values.
+There are processed data files, CSC*_ex.mat, where * are numbers 1-124, with some numbers skipped.
+Each file seems to represent the spike times and waveforms after thresholding and the downsampled LFP values.
+The skipped numbers correspond to channels that were marked as dead.
 TODO: it might be worth verifying that all 124 data files were processed the same way, i.e. all values are the same
 except for chname, lfp, spk, and spkwv
 """

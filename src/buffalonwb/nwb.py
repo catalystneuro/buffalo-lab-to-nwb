@@ -18,7 +18,6 @@ Usage: python nwb.py [metadata_file] [lfp_mat_file] [sorted_spikes_nex5_file] [b
 def main():
     # main
     # FILENAMES
-    # files for jupyter
 
     metadata_file = sys.argv[1] #'C:\\Users\\Maija\\Documents\\NWB\\buffalo-lab-data-to-nwb\\src\\buffalonwb\\dataset_information.txt'
     lfp_mat_file = sys.argv[2]#'C:\\Users\\Maija\\Documents\\NWB\\buffalo-data\\ProcessedNlxData\\2017-04-27_11-41-21\\CSC%_ex.mat'
@@ -36,8 +35,9 @@ def main():
     # METADATA
     metadata = read_metadata(metadata_file)
 
-    session_start_time = datetime.now()  # The first time recorded in the session ( I will get this)
-    timestamps_reference_time = datetime.now()  # The reference time for timestamps - this is probably the same as session start time but pretty sure Yoni said it's the first blink
+    session_start_time = datetime.now()  # TODO the first time recorded in the session
+    timestamps_reference_time = session_start_time  # the reference time for timestamps
+    # - this is probably the same as session start time but pretty sure Yoni said it's the first blink
     timezone = pytz.timezone('US/Pacific')
 
     # ADD THE HEADER DATA HERE??
@@ -88,7 +88,7 @@ def main():
         if no_copy:
             nwbfile_proc = nwbfile
         else:
-            #copy from raw to maintain file linkage
+            # copy from raw to maintain file linkage
             raw_io = NWBHDF5IO(out_file_raw, 'r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
@@ -97,9 +97,8 @@ def main():
             nwbfile_proc = raw_nwbfile_in.copy()
             print('Copying NWB file ' + out_file_raw)
 
-
         # BEHAVIOR (PROCESSED)
-        #add_behavior(nwbfile, behavior_eye_file)
+        # add_behavior(nwbfile, behavior_eye_file)
 
         # PROCESSED COMPONENTS
         # UNITS
@@ -114,13 +113,11 @@ def main():
         # WRITE PROCESSED
         if no_copy:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
-            # with NWBHDF5IO(out_file_processed, mode='w') as io:
                 print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile)
                 print(nwbfile)
         else:
             with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-            # with NWBHDF5IO(out_file_processed, mode='w') as io:
                 print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile)
                 print(nwbfile)
@@ -132,7 +129,8 @@ def read_metadata(metadata_file):
     d = {}
     with open(metadata_file) as f:
         for line in f:
-            if '#' in line or not line.strip(): continue
+            if '#' in line or not line.strip():
+                continue
             key, val = line.replace("\r", "").replace("\n", "").split("=")
             d[key] = val
     # manually convert keywords and num_electrodes to list and int respectively
@@ -176,6 +174,7 @@ def add_electrodes(nwbfile, metadata):
     electrode_table_region = nwbfile.create_electrode_table_region(list(range(0, num_electrodes)), 'all the electrodes')
 
     return electrode_table_region
+
 
 if __name__ == '__main__':
     main()

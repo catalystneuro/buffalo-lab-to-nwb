@@ -142,6 +142,7 @@ def read_csc_file(csc_data_file_name):
             warn(('Last timestamp expected to be %d us based on starting time and sampling rate, but got %d us '
                   '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
 
+        breakpoint()
         return header_data, ts, data
 
 
