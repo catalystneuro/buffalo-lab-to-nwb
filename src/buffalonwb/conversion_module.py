@@ -74,20 +74,22 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         metadata["timestamps_reference_time"] = timezone.localize(datetime.now())
 
     # MAKE NWB FILE
-    nwbfile = NWBFile(session_description=metadata['NWBFile']["session_description"],
-                      identifier=metadata['NWBFile']["identifier"],
-                      session_id=metadata['NWBFile']["session_id"],
-                      session_start_time=metadata['NWBFile']['session_start_time'],
-                      timestamps_reference_time=metadata["timestamps_reference_time"],
-                      notes=metadata['NWBFile']["notes"],
-                      stimulus_notes=metadata['NWBFile']["stimulus_notes"],
-                      data_collection=metadata['NWBFile']["data_collection"],
-                      experiment_description=metadata['NWBFile']["experiment_description"],
-                      protocol=metadata['NWBFile']["protocol"],
-                      keywords=metadata['NWBFile']["keywords"],
-                      experimenter=metadata['NWBFile']["experimenter"],
-                      lab=metadata['NWBFile']["lab"],
-                      institution=metadata['NWBFile']["institution"])
+    nwbfile = NWBFile(
+        session_description=metadata['NWBFile']["session_description"],
+        identifier=metadata['NWBFile']["identifier"],
+        session_id=metadata['NWBFile']["session_id"],
+        session_start_time=metadata['NWBFile']['session_start_time'],
+        timestamps_reference_time=metadata["timestamps_reference_time"],
+        notes=metadata['NWBFile']["notes"],
+        stimulus_notes=metadata['NWBFile']["stimulus_notes"],
+        data_collection=metadata['NWBFile']["data_collection"],
+        experiment_description=metadata['NWBFile']["experiment_description"],
+        protocol=metadata['NWBFile']["protocol"],
+        keywords=metadata['NWBFile']["keywords"],
+        experimenter=metadata['NWBFile']["experimenter"],
+        lab=metadata['NWBFile']["lab"],
+        institution=metadata['NWBFile']["institution"]
+    )
 
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
@@ -136,7 +138,10 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         # PROCESSED COMPONENTS
         # UNITS
         if sorted_spikes_nex5_file is not None:
-            add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
+            add_units(
+                nwbfile=nwbfile_proc,
+                nex_file_name=sorted_spikes_nex5_file
+            )
 
         # LFP
         if lfp_mat_path is not None:
@@ -169,10 +174,12 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
 
     # Add electrodes
     metadata_eg = metadata_ecephys['ElectrodeGroup']
-    electrode_group = nwbfile.create_electrode_group(name=metadata_eg['name'],
-                                                     description=metadata_eg['description'],
-                                                     location=metadata_eg['location'],
-                                                     device=device)
+    electrode_group = nwbfile.create_electrode_group(
+        name=metadata_eg['name'],
+        description=metadata_eg['description'],
+        location=metadata_eg['location'],
+        device=device
+    )
 
     for id in range(1, num_electrodes + 1):
         nwbfile.add_electrode(
