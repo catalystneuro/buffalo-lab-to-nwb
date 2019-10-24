@@ -1,7 +1,7 @@
 Behavior:
   EyeTracking:
     name: EyeTracking
-    spatial_series:
+    SpatialSeries:
       - name: SpatialSeries
         comments:
         data: true
@@ -10,12 +10,11 @@ Behavior:
         timestamps: true
   Position:
     name: Position
-    spatial_series:
+    SpatialSeries:
       - name: SpatialSeries
         comments:
         data: true
         description:
-        name: SpatialSeries
         reference_frame: ''
 Ecephys:
   Device:
