@@ -1,6 +1,6 @@
-import pynwb
 from pynwb import NWBHDF5IO, NWBFile
 
+from buffalonwb import __version__
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
 from buffalonwb.add_behavior import add_behavior
@@ -8,14 +8,14 @@ from buffalonwb.add_processed_nlx_data import add_lfp
 
 from datetime import datetime
 from pathlib import Path
-import yaml
+import ruamel.yaml as yaml
 import pytz
 import math
 import os
+import argparse
 
 
-def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_processed=False,
-                        lfp_iterator_flag=True, no_copy=True):
+def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, lfp_iterator_flag, no_copy):
     """
     Main function for conversion from Buffalo's lab data to NWB.
 
@@ -199,30 +199,78 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
 if __name__ == '__main__':
     """
     Usage: python conversion_module.py [raw_nlx_dir] [lfp_mat_dir]
-    [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file]
+    [sorted_spikes_nex5_file] [behavior_file] [metadata_file] [output_file]
     [-skipraw] [-skipprocessed] [-lfpiterator] [-dontcopy]
     """
     import sys
 
+    parser = argparse.ArgumentParser("A package for converting Buffalo Lab data to the NWB standard.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+        help="Show the version, and exit.",
+    )
+    parser.add_argument(
+        "raw_nlx_dir", help="The path to the directory holding raw NLX files."
+    )
+    parser.add_argument(
+        "lfp_mat_dir", help="The path to the LFP .mat file."
+    )
+    parser.add_argument(
+        "sorted_spikes_nex5_file", help="The path to the sorted spikes NEX5 file."
+    )
+    parser.add_argument(
+        "behavior_file", help="The path to the processed behavior file."
+    )
+    parser.add_argument(
+        "metadata_file", help="The path to the metadata file."
+    )
+    parser.add_argument(
+        "output_file", help="The path to the directory holding raw NLX files."
+    )
+    parser.add_argument(
+        "--skipraw",
+        action="store_false",
+        default=True,
+        help="Whether to skip adding the raw data to the NWB file",
+    )
+    parser.add_argument(
+        "--skipprocessed",
+        action="store_true",
+        default=False,
+        help="Whether to skip adding the processed data to the NWB file",
+    )
+    parser.add_argument(
+        "--lfpiterator",
+        action="store_false",
+        default=True,
+        help="Whether to use the LFP channel iterator",
+    )
+    parser.add_argument(
+        "--dontcopy",
+        action="store_false",
+        default=True,
+        help=("Whether to create a link between the processed data NWB file and the raw data NWB file instead of "
+              "copying the raw data"),
+    )
+
+    if not sys.argv[1:]:
+        args = parser.parse_args(["--help"])
+    else:
+        args = parser.parse_args()
+
     source_paths = {
-        'raw Nlx': {'type': 'dir', 'path': sys.argv[1]},
-        'processed Nlx': {'type': 'dir', 'path': sys.argv[2]},
-        'sorted spikes': {'type': 'file', 'path': sys.argv[3]},
-        'processed behavior': {'type': 'file', 'path': sys.argv[4]}
+        'raw Nlx': {'type': 'dir', 'path': args.raw_nlx_dir},
+        'processed Nlx': {'type': 'dir', 'path': args.lfp_mat_dir},
+        'sorted spikes': {'type': 'file', 'path': args.sorted_spikes_nex5_file},
+        'processed behavior': {'type': 'file', 'path': args.behavior_file}
     }
 
-    f_nwb = sys.argv[5]
-    metafile = sys.argv[6]
-
-    skip_raw = any([i == '-skipraw' for i in sys.argv])
-    skip_processed = any([i == '-skipprocessed' for i in sys.argv])
-    lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
-    no_copy = any([i == '-dontcopy' for i in sys.argv])
-
     conversion_function(source_paths=source_paths,
-                        f_nwb=f_nwb,
-                        metafile=metafile,
-                        skip_raw=skip_raw,
-                        skip_processed=skip_processed,
-                        lfp_iterator_flag=lfp_iterator_flag,
-                        no_copy=no_copy)
+                        f_nwb=args.output_file,
+                        metafile=args.metadata_file,
+                        skip_raw=args.skipraw,
+                        skip_processed=args.skipprocessed,
+                        lfp_iterator_flag=args.lfpiterator,
+                        no_copy=args.dontcopy)
