@@ -126,7 +126,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
                 nex_file_name=sorted_spikes_nex5_file
             )
 
-        # LFP
+        # Add LFP
         if lfp_mat_path is not None:
             add_lfp(
                 nwbfile=nwbfile_proc,
@@ -173,7 +173,7 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=N
             kwargs.update(label=electrode_labels[i])
 
         nwbfile.add_electrode(
-            id=id,
+            id=i + 1,
             x=math.nan,
             y=math.nan,
             z=math.nan,
@@ -181,7 +181,6 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=N
             location=electrode_group.location,
             filtering='none',
             group=electrode_group,
-            id=i + 1,
             **kwargs
         )
 
