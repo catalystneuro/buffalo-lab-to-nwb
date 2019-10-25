@@ -34,7 +34,7 @@ def add_lfp(nwbfile, lfp_path, electrodes, iterator_flag, all_electrode_labels):
     # time x 120
     # add the lfp metadata - some in the lab metadata and some in the electrical series
     lfp_es = ElectricalSeries(
-        name='ElectricalSeries',
+        name='LFP',
         data=lfp_data,
         electrodes=electrodes,
         starting_time=float(lfp_timestamps_sq[0]),
