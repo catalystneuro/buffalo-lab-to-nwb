@@ -1,14 +1,57 @@
 import scipy
 import scipy.io as spio
 import numpy as np
-from pynwb import TimeSeries
+from pynwb.behavior import Position, EyeTracking
 
 
-def add_behavior(nwbfile, behavior_eye_file):
-    print("adding behavior")
+def add_behavior(nwbfile, behavior_file, metadata_behavior):
+    print("adding behavior...")
     # process raw behavior
-    behavior_file = loadmat(behavior_eye_file)
-    behavior_module = nwbfile.create_processing_module(name='behavior', description='preprocessed behavioral data')
+    behavior_data = loadmat(behavior_file)
+    behavior_module = nwbfile.create_processing_module(
+        name='behavior',
+        description='preprocessed behavioral data'
+    )
+
+    # Player Position
+    pos = Position(name='Position')
+    for epoch in range(1, 7):
+        if epoch == 3:
+            epoch_data = behavior_data["behavior"][epoch - 1]
+            all_pos = np.array(epoch_data['posdat'])
+            all_tme = np.array(epoch_data['tme'])
+        elif epoch > 3:
+            epoch_data = behavior_data["behavior"][epoch - 1]
+            all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
+            all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
+    # metadata for SpatialSeries stored in Position
+    meta_pos = metadata_behavior['Position']['SpatialSeries'][0]
+    pos.create_spatial_series(
+        name=meta_pos['name'],
+        data=all_pos,
+        reference_frame=meta_pos['reference_frame'],
+        timestamps=all_tme
+    )
+    behavior_module.add(pos)
+
+    # nlx eye movements
+    nlxeye = EyeTracking(name='EyeTracking')
+    # metadata for SpatialSeries stored in EyeTracking
+    meta_et = metadata_behavior['EyeTracking']['SpatialSeries'][0]
+    nlxeye.create_spatial_series(
+        name=meta_et['name'],
+        data=np.array(behavior_data["nlxeye"]).T,
+        reference_frame=meta_et['reference_frame'],
+        timestamps=behavior_data["nlxtme"]
+    )
+    behavior_module.add(nlxeye)
+
+    # trial columns
+    nwbfile.add_trial_column(
+        name='environment',
+        description='trial environment (calibration if calibration trial)'
+    )
+    # nwbfile.add_trial_column(name='trial_vars', description='trial variables - different between calibration and task')
 
     # event key dictionary
     event_dict = {"new_trial": 1000,
@@ -20,17 +63,9 @@ def add_behavior(nwbfile, behavior_eye_file):
                   "end_presentation": 101,
                   "successful_trial": 200}
 
-    # nlx eye movements 
-    nlxeye_ts = TimeSeries(name="nlxeye", data=behavior_file["nlxeye"], timestamps=behavior_file["nlxtme"])
-    nwbfile.add_acquisition(nlxeye_ts)
-
-    # trial columns
-    nwbfile.add_trial_column(name='environment', description='trial environment (calibration if calibration trial)')
-    # nwbfile.add_trial_column(name='trial_vars', description='trial variables - different between calibration and task')
-
     # process behavior here
     for epoch in range(1, 7):
-        epoch_data = behavior_file["behavior"][epoch - 1]
+        epoch_data = behavior_data["behavior"][epoch - 1]
         if epoch < 3:
             process_behavior_calibration(nwbfile, epoch, epoch_data)
         else:
@@ -53,11 +88,9 @@ def loadmat(filename):
         todict is called to change them to nested dictionaries
         '''
         for key in d:
-            print(key)
             if isinstance(d[key], spio.matlab.mio5_params.mat_struct):
                 d[key] = _todict(d[key])
             if key == "behavior":
-                print("tolist!")
                 d[key] = _tolist(d[key])
         return d
 
@@ -102,7 +135,7 @@ def loadmat(filename):
 def process_behavior_calibration(nwbfile,session, data):
     # convert to floats
     # add calibration trials (session 1 & 2 )
-    # no time series data, everything is inside trials 
+    # no time series data, everything is inside trials
     num_trials = len(data["start_trial"])
     for t in range(0, num_trials):
         # add rest of calibration stuff
@@ -111,14 +144,14 @@ def process_behavior_calibration(nwbfile,session, data):
                           stop_time=float(data["end_trial"][t][0]),
                           environment="calibration")  # ,
         # trial_vars=trial_data)
-    nwbfile.add_epoch(float(data["start_trial"][0][0]),
-                      float(data["end_trial"][num_trials - 1][0]),
-                      ["session: " + str(session), "envronment: calibraton"],
-                      [])
+    nwbfile.add_epoch(start_time=float(data["start_trial"][0][0]),
+                      stop_time=float(data["end_trial"][num_trials - 1][0]),
+                      tags=["session: " + str(session), "envronment: calibraton"],
+                      timeseries=[])
 
 
 def process_behavior(nwbfile,session, data, banana_flag, event_dict):
-    # 
+    #
 
     # process events to time stamps
     start_trial, end_trial, end_presentation, reward_on, reward_off, reward_data, reward_ts, success, right_trial, left_trial = process_events(
@@ -145,23 +178,26 @@ def process_behavior(nwbfile,session, data, banana_flag, event_dict):
                 # THIS IS BANANA TIME
                 end_trial[t] = end_trial[t] + 1000
 
-    # add time series 
+    # add time series
     # reward_ts = TimeSeries(name="reward_ts",data=reward_data, timestamps=reward_ts)
     # nwbfile.add_acquisition(reward_ts)
 
     # add trials and epoch
     for t in range(0, num_trials):
-        nwbfile.add_trial(start_time=start_trial[t], stop_time=end_trial[t],
+        nwbfile.add_trial(start_time=start_trial[t],
+                          stop_time=end_trial[t],
                           environment=data["env"])  # , trial_vars=trial_data)
 
-    nwbfile.add_epoch(start_trial[0], end_trial[num_trials - 1],
-                      ['session: ' + str(session), 'envronment: ' + data["env"]], [])
+    nwbfile.add_epoch(start_time=start_trial[0],
+                      stop_time=end_trial[num_trials - 1],
+                      tags=['session: ' + str(session), 'envronment: ' + data["env"]],
+                      timeseries=[])
 
 
 def process_events(events, events_ts, event_dict):
     # get events and time stamps and return timestamps of events
     # check input for invalid trial keys
-    # input checking on left and right trials 
+    # input checking on left and right trials
     # check number of trials
     start_trial = list_comp(events, events_ts, event_dict["new_trial"])
     end_trial = list_comp(events, events_ts, event_dict["end_trial"])
@@ -181,7 +217,7 @@ def process_events(events, events_ts, event_dict):
         elif events[e] == float(event_dict["reward_off"]):
             reward_data.append(0)
             reward_ts.append(events_ts[e])
-    # is right trial the opposite of left trial 
+    # is right trial the opposite of left trial
     right_trial = list_comp(events, events_ts, event_dict["right_trial"])
     left_trial = list_comp(events, events_ts, event_dict["left_trial"])
     success = list_comp(events, events_ts, event_dict["successful_trial"])
@@ -192,4 +228,3 @@ def list_comp(data, events_ts, key):
     idx = [i for i, x in enumerate(data) if x == key]
     ts = [events_ts[i] for i in idx]
     return ts
-

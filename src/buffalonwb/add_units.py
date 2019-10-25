@@ -6,11 +6,8 @@ from hdmf.data_utils import DataChunkIterator
 
 
 # From Ryan Ly
-def add_units(nwbfile, nex_file_name, max_num_channels=1024):
-
+def add_units(nwbfile, nex_file_name, include_waveforms=False, max_num_channels=1024):
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
-    file_header = file_data['FileHeader']  # dict of .nex file info
-    writer_software = file_data['MetaData']['file']['writerSoftware']  # dict of name, version
 
     # first half of variables contains spike times, second half contains spike waveforms for each spike time
     num_vars = len(file_data['Variables'])
@@ -37,8 +34,6 @@ def add_units(nwbfile, nex_file_name, max_num_channels=1024):
         if (var_ts_only['Timestamps'] != var['Timestamps']).any():
             raise InconsistentInputException()
         if var['Timestamps'].shape != (var_header['Count'], ):
-            raise InconsistentInputException()
-        if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
         if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
@@ -78,7 +73,8 @@ def add_units(nwbfile, nex_file_name, max_num_channels=1024):
     nwbfile.add_unit_column('nex_var_version', 'variable version in the NEX5 file')
 
     # since waveforms are not a 1:1 mapping per unit, use table indexing
-    nwbfile.add_unit_column('waveforms', 'waveforms for each spike', index=True)
+    if include_waveforms:
+        nwbfile.add_unit_column('waveforms', 'waveforms for each spike', index=True)
 
     total_spikes_ch = np.zeros((max_num_channels,), dtype=int)
     num_units = num_vars - start_var
@@ -125,6 +121,10 @@ def add_units(nwbfile, nex_file_name, max_num_channels=1024):
         )
         added_count += num_spikes
 
+        kwargs = dict()
+        if include_waveforms:
+            kwargs.update(waveforms=var['WaveformValues'])
+
         nwbfile.add_unit(electrodes=electrodes,
                          name=var_header['Name'],
                          spike_times=var['Timestamps'],
@@ -133,8 +133,8 @@ def add_units(nwbfile, nex_file_name, max_num_channels=1024):
                          num_spikes=var_header['Count'],
                          sampling_rate=var_header['SamplingRate'],
                          nex_var_version=var_header['Version'],
-                         waveforms=var['WaveformValues'],
-                         probabilities=probs_iter)
+                         probabilities=probs_iter,
+                         **kwargs)
 
 
 def get_channel_num(unit_name):

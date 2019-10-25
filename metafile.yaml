@@ -1,0 +1,45 @@
+Behavior:
+  EyeTracking:
+    name: EyeTracking
+    SpatialSeries:
+      - name: SpatialSeries
+        comments:
+        data: true
+        description: ''
+        reference_frame: ''
+        timestamps: true
+  Position:
+    name: Position
+    SpatialSeries:
+      - name: SpatialSeries
+        comments:
+        data: true
+        description:
+        reference_frame: ''
+Ecephys:
+  Device:
+    name: ADDME
+  ElectrodeGroup:
+    description: ''
+    device: ADDME
+    location: Hippocampus
+    name: ElectrodeGroup
+NWBFile:
+  data_collection: ''
+  experiment_description: ''
+  experimenter: Yoni Browning
+  identifier: ADDME
+  institution: University of Washington
+  keywords:
+  - ''
+  lab: Buffalo Lab
+  notes: ''
+  pharmacology: ''
+  protocol: ''
+  related_publications: ''
+  session_description: ADDME
+  session_id: ''
+  slices: ''
+  stimulus_notes: ''
+  surgery: ''
+  virus: ''

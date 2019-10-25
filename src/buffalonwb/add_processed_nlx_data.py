@@ -1,41 +1,44 @@
 # add processed nlx data
 import h5py
-from pynwb.ecephys import ElectricalSeries
 import numpy as np
 import os
 import pynwb
+from pynwb.ecephys import ElectricalSeries
 from hdmf.data_utils import DataChunkIterator
-from buffalonwb.exceptions import UnexpectedInputException
+from buffalonwb.exceptions import UnexpectedInputException, InconsistentInputException
 from tqdm import trange
 
 
-def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc_module, iterator_flag):
+def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
     if iterator_flag:
-        print("LFP adding via data chunk iterator")
-        lfp, lfp_timestamps, lfp_rate = get_lfp_data(1, lfp_file_name)
-        lfp_data = DataChunkIterator(data=lfp_generator(lfp_file_name, num_electrodes), iter_axis=1)
+        print("adding LFP via data chunk iterator")
+        lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1, lfp_path=lfp_path)
+        lfp_gen = lfp_generator(lfp_path=lfp_path, num_electrodes=num_electrodes)
+        lfp_data = DataChunkIterator(data=lfp_gen, iter_axis=1)
     else:
-        lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes, lfp_file_name)
+        lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=num_electrodes, lfp_path=lfp_path)
 
-   # lfp_timestamps_sq = np.squeeze(lfp_timestamps)
-   # if 1/(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]) !=lfp_rate:
-   #     print("not equal to rate!!")
-   #     print(str(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]))
-   #     print(str(lfp_rate))
+    lfp_timestamps_sq = np.squeeze(lfp_timestamps)
+    # if 1/(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]) !=lfp_rate:
+    #     print("not equal to rate!!")
+    #     print(str(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]))
+    #     print(str(lfp_rate))
 
     # time x 120
     # add the lfp metadata - some in the lab metadata and some in the electrical series
-    lfp_es = ElectricalSeries('ElectricalSeries',
-                              lfp_data,
-                              electrode_table_region,
-                              starting_time=float(lfp_timestamps_sq[0]),
-                              rate=lfp_rate,
-                              comments="LFP",
-                              description="LFP")
+    lfp_es = ElectricalSeries(
+        name='LFP',
+        data=lfp_data,
+        electrodes=electrodes,
+        starting_time=float(lfp_timestamps_sq[0]),
+        rate=lfp_rate,
+    )
 
-    # put LFP data in ecephys
-    # what is the most efficient/pythonic way to do this?
-
+    proc_module = nwbfile.create_processing_module(
+        name='ecephys',
+        description='module for processed ecephys data'
+    )
+    # Store LFP data in ecephys
     proc_module.add(pynwb.ecephys.LFP(electrical_series=lfp_es, name='LFP'))
 
 
@@ -45,68 +48,85 @@ def add_lfp(nwbfile, lfp_file_name, electrode_table_region, num_electrodes, proc
 
 # process nlx mat file into dictionary
 # needs: data, timestamps, resolution, time, rate
-def MH_process_nlx_mat_file(nlx_file_name):
-    # for some reason files 7-9 don't exist
-    # as a stop gap we'll skip them
-    # FIXTHIS
-    if os.path.exists(nlx_file_name):
-        nlx_file = h5py.File(nlx_file_name, 'r')
-    else:
+def process_nlx_mat_file(nlx_file_name):
+    if not os.path.exists(nlx_file_name):
         msg = 'skipped ' + str(nlx_file_name + ', returning empty dict')
         print(msg)
         return dict()
 
-    # raw sampling frequency
-    Fs = check_get_scalar(nlx_file['Fs'][()])
+    with h5py.File(nlx_file_name, 'r') as nlx_file:
+        expected_keys = {'chname', 'firstts', 'lfpfq', 'params', 'filename', 'lfp', 'extractMethod', 'spkts', '#refs#',
+                         'foldername', 'lfpts', 'spkwv', 'Fs'}
+        if set(nlx_file.keys()) != expected_keys:
+            raise UnexpectedInputException()
 
-    # first timestamp in raw data
-    first_ts = check_get_scalar(nlx_file['firstts'][()])
+        expected_param_keys = {'lfpfq', 'n_std', 'rawspk', 'resamp', 'saveupsamp', 'spkbuff', 'spkfq'}
+        if set(nlx_file['params'].keys()) != expected_param_keys:
+            raise UnexpectedInputException()
 
-    # lfp sampling frequency, should be same as value in params.lfpfq
-    lfp_Fs = check_get_scalar(nlx_file['lfpfq'][()])
+        # convert from ascii ints to string
+        chname = ''.join(map(chr, nlx_file['chname']))
+        extract_method = ''.join(map(chr, nlx_file['extractMethod']))
+        ncs_filename = ''.join(map(chr, nlx_file['filename']))  # original file name, probably not necessary
 
-    # lfp values -- units?
-    lfp = nlx_file['lfp'][()]
+        # raw sampling frequency
+        Fs = check_get_scalar(nlx_file['Fs'][()])
 
-    # lfp timestamps, num columns should match num columns of lfp
-    lfp_ts = nlx_file['lfpts'][()]
-    lfp_ts = nlx_file['lfpts'][()]
+        # first timestamp in raw data
+        first_ts = check_get_scalar(nlx_file['firstts'][()])
 
-    # check lfp_ts, then keep only starting time (first_lfp_ts) and rate (lfp_Fs)
-    diff_lfp_ts = np.diff(lfp_ts)
-    first_lfp_ts = lfp_ts[0][0]
+        # lfp sampling frequency, should be same as value in params.lfpfq
+        lfp_Fs = check_get_scalar(nlx_file['lfpfq'][()])
 
-    # get spike times
-    spk_ts = nlx_file['spkts'][()]
+        # lfp values -- units?
+        lfp = nlx_file['lfp'][()]
 
-    # get spike waveforms
-    spk_wfs = nlx_file['spkwv'][()]
+        # lfp timestamps, num columns should match num columns of lfp
+        lfp_ts = nlx_file['lfpts'][()]
 
-    # get preprocessing parameters
-    n_std = check_get_scalar(nlx_file['params']['n_std'])  # standard deviations used for thresholding
-    rawspk = check_get_scalar(nlx_file['params']['rawspk'])  # ??? 0 in sample file
-    resamp = check_get_scalar(nlx_file['params']['resamp'])  # ??? 1 in sample file
-    saveupsamp = check_get_scalar(nlx_file['params']['saveupsamp'])  # ??? 0 in sample file
-    spkfq = check_get_scalar(nlx_file['params']['spkfq'])  # ??? 400 in sample file
-    # MH- ??? what is up with this #FIXTHIS
+        # check lfp_ts, then keep only starting time (first_lfp_ts) and rate (lfp_Fs)
+        """
+        diff_lfp_ts = np.diff(lfp_ts)
+        if (abs(diff_lfp_ts[0][0] - 1/lfp_Fs) > 1e-8).any():
+            raise InconsistentInputException()
+        """
+        first_lfp_ts = lfp_ts[0][0]
 
-    # i'm guessing spkbuff specifies num samples before threshold crossing and num samples after threshold
-    spk_buff = nlx_file['params']['spkbuff'][()]
-    spk_buff = spk_buff.transpose()[0].tolist()
+        # get spike times
+        spk_ts = nlx_file['spkts'][()]
+        if spk_ts.shape[0] != 1:
+            raise UnexpectedInputException()
 
-    # variables of interest
-    dict_vars = {'Fs', 'first_ts', 'lfp_Fs', 'lfp', 'lfp_ts', 'first_lfp_ts', 'spk_ts', 'spk_wfs', 'n_std', 'rawspk',
-                 'resamp', 'saveupsamp', 'spkfq', 'spk_buff'}
+        # get spike waveforms
+        spk_wfs = nlx_file['spkwv'][()]
+        if spk_wfs.shape[1] != spk_ts.shape[1]:
+            raise UnexpectedInputException()
 
-    # make a dictionary
-    file_dict = dict()
-    for i in dict_vars:
-        file_dict[i] = locals()[i]
+        # get preprocessing parameters
+        n_std = check_get_scalar(nlx_file['params']['n_std'])  # standard deviations used for thresholding
+        rawspk = check_get_scalar(nlx_file['params']['rawspk'])  # ??? 0 in sample file
+        resamp = check_get_scalar(nlx_file['params']['resamp'])  # ??? 1 in sample file
+        saveupsamp = check_get_scalar(nlx_file['params']['saveupsamp'])  # ??? 0 in sample file
+        spkfq = check_get_scalar(nlx_file['params']['spkfq'])  # ??? 400 in sample file
 
-    # DELETE NLX FILE TO CLEAN MEMORY
-    del nlx_file
+        # i'm guessing spkbuff specifies num samples before threshold crossing and num samples after threshold
+        spk_buff = nlx_file['params']['spkbuff'][()]
+        if spk_buff.shape != (2, 1):
+            raise UnexpectedInputException()
+        if sum(spk_buff)[0] + 1 != spk_wfs.shape[0]:
+            raise InconsistentInputException()
+        spk_buff = spk_buff.transpose()[0].tolist()
 
-    return file_dict
+        # variables of interest
+        dict_vars = {'Fs', 'first_ts', 'lfp_Fs', 'lfp', 'lfp_ts', 'first_lfp_ts', 'spk_ts', 'spk_wfs', 'n_std',
+                     'rawspk', 'resamp', 'saveupsamp', 'spkfq', 'spk_buff'}
+
+        # make a dictionary
+        file_dict = dict()
+        for i in dict_vars:
+            file_dict[i] = locals()[i]
+
+        return file_dict
 
 
 def check_get_scalar(v):
@@ -117,27 +137,29 @@ def check_get_scalar(v):
     return v[0][0]
 
 
-def get_lfp_data(num_electrodes, lfp_file):
-    processed = MH_process_nlx_mat_file(str(1).join(lfp_file.split("%")))
+def get_lfp_data(num_electrodes, lfp_path):
+    all_files = os.listdir(lfp_path)
+    processed = process_nlx_mat_file(lfp_path.joinpath(all_files[0]))
     num_ts = max(processed["lfp_ts"].shape)
     lfp = np.full((num_electrodes, num_ts), np.nan)
     ts = processed["lfp_ts"]
-    fs = processed["Fs"]
+    fs = processed["lfp_Fs"]
     # check if ts are all the same
-    for f in trange(1, num_electrodes, desc='reading LFP'):
-        file_name = str(f).join(lfp_file.split("%"))
-        processed_file = MH_process_nlx_mat_file(file_name)
+    for i in trange(num_electrodes, desc='reading LFP'):
+        file_name = lfp_path.joinpath(all_files[i])
+        processed_file = process_nlx_mat_file(file_name)
         if processed_file:
-            lfp[f, :] = processed_file["lfp"]
+            lfp[i, :] = processed_file["lfp"]
     return lfp, ts, fs
 
 
-def lfp_generator(lfp_file, num_electrodes):
+def lfp_generator(lfp_path, num_electrodes):
+    all_files = os.listdir(lfp_path)
     # generate lfp data chunks
-    for x in trange(1, num_electrodes + 1, desc='writing LFP'):
-        file_name = str(x).join(lfp_file.split("%"))
-        processed_data = MH_process_nlx_mat_file(file_name)
+    for i in trange(num_electrodes, desc='writing LFP'):
+        file_name = lfp_path.joinpath(all_files[i])
+        processed_data = process_nlx_mat_file(file_name)
         lfp_data = processed_data["lfp"]
         del processed_data
-        yield lfp_data
+        yield np.squeeze(lfp_data).T
     return
