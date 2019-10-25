@@ -1,21 +1,18 @@
 Behavior:
   EyeTracking:
     name: EyeTracking
-    SpatialSeries:
-      - name: SpatialSeries
-        comments:
-        data: true
-        description: ''
-        reference_frame: ''
-        timestamps: true
+    spatial_series:
+      data: true
+      description: eye tracking
+      name: SpatialSeries
+      reference_frame: ''
   Position:
     name: Position
-    SpatialSeries:
-      - name: SpatialSeries
-        comments:
-        data: true
-        description:
-        reference_frame: ''
+    spatial_series:
+      data: true
+      description: position in virtual reality
+      name: SpatialSeries
+      reference_frame: ''
 Ecephys:
   Device:
     name: ADDME
@@ -25,21 +22,22 @@ Ecephys:
     location: Hippocampus
     name: ElectrodeGroup
 NWBFile:
-  data_collection: ''
-  experiment_description: ''
+  experiment_description: ADDME
   experimenter: Yoni Browning
   identifier: ADDME
   institution: University of Washington
   keywords:
-  - ''
+  - navigation
+  - virtual reality
   lab: Buffalo Lab
-  notes: ''
-  pharmacology: ''
-  protocol: ''
-  related_publications: ''
   session_description: ADDME
-  session_id: ''
-  slices: ''
-  stimulus_notes: ''
-  surgery: ''
-  virus: ''
+  session_id: ADDME
+  related_publications:
+  slices:
+  stimulus_notes:
+  surgery:
+  virus:
+  notes:
+  pharmacology:
+  protocol:
+  data_collection:

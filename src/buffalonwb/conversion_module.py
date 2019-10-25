@@ -14,6 +14,7 @@ import math
 import os
 import argparse
 import glob
+from natsort import natsorted
 
 
 def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, lfp_iterator_flag, no_copy):
@@ -31,7 +32,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     f_nwb : str
         Stem to output file. Two files might be produced using this stem:
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
-    metadata_file : str or path
+    metafile : str or path
         Yaml metadata file.
     """
 
@@ -61,43 +62,23 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         metadata = yaml.safe_load(f)
 
     # Number of electrodes
-    if raw_nlx_path:
-        csc_files = glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
-        if len(csc_files) % 2 == 1:
-            raise Exception('There must be two raw Neuralynx CSC (.ncs) files for each channel -- one for the header'
-                            ' and one for the data.')
-        num_channels = len(csc_files) // 2
-    elif lfp_mat_path:
-        num_channels = len(os.listdir(lfp_mat_path))
-    else:
-        raise Exception('The path to either raw or processed files must be provided '
-                        'for the number of channels to be found.')
+    electrode_labels = natsorted([os.path.split(x)[1][:-4]
+                                  for x in glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
+                                  if '_' not in os.path.split(x)[1]])
 
     # parse filename of behavior mat file for session_start_time, localize to Pacific time for Buffalo Lab
     session_start_time = datetime.strptime(behavior_file.stem[8:], '%Y-%m-%d_%H-%M-%S')
     session_start_time = pytz.timezone('US/Pacific').localize(session_start_time)
+    metadata['NWBFile']['session_start_time'] = session_start_time
 
     # build NWB file
-    nwbfile = NWBFile(
-        session_description=metadata['NWBFile']["session_description"],
-        identifier=metadata['NWBFile']["identifier"],
-        session_id=metadata['NWBFile']["session_id"],
-        session_start_time=session_start_time,
-        notes=metadata['NWBFile']["notes"],
-        stimulus_notes=metadata['NWBFile']["stimulus_notes"],
-        data_collection=metadata['NWBFile']["data_collection"],
-        experiment_description=metadata['NWBFile']["experiment_description"],
-        protocol=metadata['NWBFile']["protocol"],
-        keywords=metadata['NWBFile']["keywords"],
-        experimenter=metadata['NWBFile']["experimenter"],
-        lab=metadata['NWBFile']["lab"],
-        institution=metadata['NWBFile']["institution"]
-    )
+    nwbfile = NWBFile(**metadata['NWBFile'])
 
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
         metadata_ecephys=metadata['Ecephys'],
-        num_electrodes=num_channels
+        num_electrodes=len(electrode_labels),
+        electrode_labels=electrode_labels
     )
 
     if skip_raw:
@@ -108,7 +89,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             nwbfile=nwbfile,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
-            num_electrodes=num_channels
+            num_electrodes=len(electrode_labels)
         )
 
         # Write raw data to NWB file
@@ -140,17 +121,20 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
 
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
-            add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
+            add_units(
+                nwbfile=nwbfile_proc,
+                nex_file_name=sorted_spikes_nex5_file
+            )
 
-        # Add LFPs
-        # if lfp_mat_path is not None:
-        #     add_lfp(
-        #         nwbfile=nwbfile_proc,
-        #         lfp_path=lfp_mat_path,
-        #         num_electrodes=num_channels,
-        #         electrodes=electrode_table_region,
-        #         iterator_flag=lfp_iterator_flag
-        #     )
+        # LFP
+        if lfp_mat_path is not None:
+            add_lfp(
+                nwbfile=nwbfile_proc,
+                lfp_path=lfp_mat_path,
+                electrodes=electrode_table_region,
+                iterator_flag=lfp_iterator_flag,
+                all_electrode_labels=electrode_labels
+            )
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
@@ -165,7 +149,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         print(nwbfile_proc)
 
 
-def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
+def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
     # Add device
     device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
 
@@ -173,13 +157,21 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
     metadata_eg = metadata_ecephys['ElectrodeGroup']
     if metadata_eg['device'] != device.name:
         raise Exception('Name of device in ElectrodeGroup must match the single Device name in the metadata YAML file')
-    electrode_group = nwbfile.create_electrode_group(name=metadata_eg['name'],
-                                                     description=metadata_eg['description'],
-                                                     location=metadata_eg['location'],
-                                                     device=device)
+    electrode_group = nwbfile.create_electrode_group(
+        name=metadata_eg['name'],
+        description=metadata_eg['description'],
+        location=metadata_eg['location'],
+        device=device
+    )
 
-    # Add electrodes with IDs starting at 1. No location or impedance specified.
-    for id in range(1, num_electrodes + 1):
+    if electrode_labels:
+        nwbfile.add_electrode_column('label', 'labels of electrodes')
+
+    for i in range(num_electrodes):
+        kwargs = dict()
+        if electrode_labels:
+            kwargs.update(label=electrode_labels[i])
+
         nwbfile.add_electrode(
             id=id,
             x=math.nan,
@@ -189,6 +181,8 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
             location=electrode_group.location,
             filtering='none',
             group=electrode_group,
+            id=i + 1,
+            **kwargs
         )
 
     # Create an electrode table region encompassing all electrodes
