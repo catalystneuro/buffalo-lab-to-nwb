@@ -32,7 +32,7 @@ def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
                'factor %f') % (elecseries_name, elecseries.data.shape[0], nChannels, timestampFrequency, conversion))
 
         writer = nexwriter2.NexWriter2(timestampFrequency, useNumpy=True)
-        for ch in trange(2, desc='writing channels'):
+        for ch in trange(nChannels, desc='writing channels'):
             writer.AddContVarWithSingleFragment(
                 name='channel_'+str(ch),
                 timestampOfFirstDataPoint=0,
