@@ -17,7 +17,7 @@ import glob
 from natsort import natsorted
 
 
-def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, lfp_iterator_flag, no_copy):
+def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
     """
     Main function for conversion from Buffalo's lab data formats to NWB.
 
@@ -101,7 +101,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     if skip_processed:
         print("skipping processed data...")
     if not skip_processed:
-        if no_copy or skip_raw:
+        if not copy_raw or skip_raw:
             nwbfile_proc = nwbfile
         else:
             # Copy from raw data NWB file to maintain file linkage
@@ -132,13 +132,13 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
                 electrodes=electrode_table_region,
-                iterator_flag=lfp_iterator_flag,
+                iterator_flag=not no_lfp_iterator,
                 all_electrode_labels=electrode_labels
             )
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
-        if no_copy or skip_raw:
+        if not copy_raw or skip_raw:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
                 io.write(nwbfile_proc)
         else:
@@ -229,8 +229,8 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--skipraw",
-        action="store_false",
-        default=True,
+        action="store_true",
+        default=False,
         help="Whether to skip adding the raw data to the NWB file",
     )
     parser.add_argument(
@@ -240,17 +240,17 @@ if __name__ == '__main__':
         help="Whether to skip adding the processed data to the NWB file",
     )
     parser.add_argument(
-        "--lfpiterator",
-        action="store_false",
-        default=True,
+        "--nolfpiterator",
+        action="store_true",
+        default=False,
         help="Whether to use the LFP channel iterator",
     )
     parser.add_argument(
-        "--dontcopy",
-        action="store_false",
-        default=True,
-        help=("Whether to create a link between the processed data NWB file and the raw data NWB file instead of "
-              "copying the raw data"),
+        "--copyraw",
+        action="store_true",
+        default=False,
+        help=("Whether to copy the raw data instead of create a link between the processed data NWB file and the "
+              "raw data NWB file instead of "),
     )
 
     if not sys.argv[1:]:
@@ -270,5 +270,5 @@ if __name__ == '__main__':
                         metafile=args.metadata_yaml_file,
                         skip_raw=args.skipraw,
                         skip_processed=args.skipprocessed,
-                        lfp_iterator_flag=args.lfpiterator,
-                        no_copy=args.dontcopy)
+                        no_lfp_iterator=args.nolfpiterator,
+                        copy_raw=args.copyraw)
