@@ -1,4 +1,3 @@
-import pynwb
 from pynwb import NWBHDF5IO, NWBFile
 
 from buffalonwb.add_units import add_units
@@ -12,6 +11,8 @@ import yaml
 import pytz
 import math
 import os
+import glob
+from natsort import natsorted
 
 
 def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_processed=False,
@@ -30,7 +31,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
     f_nwb : str
         Stem to output file. Two files might be produced using this stem:
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
-    metadata_file : str or path
+    metafile : str or path
         Yaml metadata file.
     """
 
@@ -60,13 +61,9 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         metadata = yaml.safe_load(f)
 
     # Number of electrodes
-    if lfp_mat_path:
-        nChannels = len(os.listdir(lfp_mat_path))
-    elif raw_nlx_path:
-        nChannels = len(os.listdir(raw_nlx_path)) // 2
-    else:
-        raise Exception('The path to either raw or processed files must be provided '
-                        'for the number of channels to be found.')
+    electrode_labels = natsorted([os.path.split(x)[1][:-4]
+                                  for x in glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
+                                  if '_' not in os.path.split(x)[1]])
 
     # Check if timestamps_reference_time was given in metadata
     if "timestamps_reference_time" not in metadata:
@@ -74,25 +71,13 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         metadata["timestamps_reference_time"] = timezone.localize(datetime.now())
 
     # MAKE NWB FILE
-    nwbfile = NWBFile(session_description=metadata['NWBFile']["session_description"],
-                      identifier=metadata['NWBFile']["identifier"],
-                      session_id=metadata['NWBFile']["session_id"],
-                      session_start_time=metadata['NWBFile']['session_start_time'],
-                      timestamps_reference_time=metadata["timestamps_reference_time"],
-                      notes=metadata['NWBFile']["notes"],
-                      stimulus_notes=metadata['NWBFile']["stimulus_notes"],
-                      data_collection=metadata['NWBFile']["data_collection"],
-                      experiment_description=metadata['NWBFile']["experiment_description"],
-                      protocol=metadata['NWBFile']["protocol"],
-                      keywords=metadata['NWBFile']["keywords"],
-                      experimenter=metadata['NWBFile']["experimenter"],
-                      lab=metadata['NWBFile']["lab"],
-                      institution=metadata['NWBFile']["institution"])
+    nwbfile = NWBFile(**metadata['NWBFile'])
 
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
         metadata_ecephys=metadata['Ecephys'],
-        num_electrodes=nChannels
+        num_electrodes=len(electrode_labels),
+        electrode_labels=electrode_labels
     )
 
     if skip_raw:
@@ -103,7 +88,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
             nwbfile=nwbfile,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
-            num_electrodes=nChannels
+            num_electrodes=len(electrode_labels)
         )
 
         # Write raw
@@ -136,16 +121,19 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         # PROCESSED COMPONENTS
         # UNITS
         if sorted_spikes_nex5_file is not None:
-            add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
+            add_units(
+                nwbfile=nwbfile_proc,
+                nex_file_name=sorted_spikes_nex5_file
+            )
 
         # LFP
         if lfp_mat_path is not None:
             add_lfp(
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
-                num_electrodes=nChannels,
                 electrodes=electrode_table_region,
-                iterator_flag=lfp_iterator_flag
+                iterator_flag=lfp_iterator_flag,
+                all_electrode_labels=electrode_labels
             )
 
         # WRITE PROCESSED
@@ -163,18 +151,27 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
             raw_io.close()
 
 
-def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
+def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
     # Add device
     device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
 
     # Add electrodes
     metadata_eg = metadata_ecephys['ElectrodeGroup']
-    electrode_group = nwbfile.create_electrode_group(name=metadata_eg['name'],
-                                                     description=metadata_eg['description'],
-                                                     location=metadata_eg['location'],
-                                                     device=device)
+    electrode_group = nwbfile.create_electrode_group(
+        name=metadata_eg['name'],
+        description=metadata_eg['description'],
+        location=metadata_eg['location'],
+        device=device
+    )
 
-    for id in range(1, num_electrodes + 1):
+    if electrode_labels:
+        nwbfile.add_electrode_column('label', 'labels of electrodes')
+
+    for i in range(num_electrodes):
+        kwargs = dict()
+        if electrode_labels:
+            kwargs.update(label=electrode_labels[i])
+
         nwbfile.add_electrode(
             x=math.nan,
             y=math.nan,
@@ -183,7 +180,8 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
             location=electrode_group.location,
             filtering='none',
             group=electrode_group,
-            id=id
+            id=i + 1,
+            **kwargs
         )
 
     # all electrodes in table region

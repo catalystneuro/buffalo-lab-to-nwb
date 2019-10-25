@@ -2,21 +2,19 @@ Behavior:
   EyeTracking:
     name: EyeTracking
     spatial_series:
-      - name: SpatialSeries
-        comments:
-        data: true
-        description: ''
-        reference_frame: ''
-        timestamps: true
+      comments: ''
+      data: true
+      description: ''
+      name: SpatialSeries
+      reference_frame: ''
   Position:
     name: Position
     spatial_series:
-      - name: SpatialSeries
-        comments:
-        data: true
-        description:
-        name: SpatialSeries
-        reference_frame: ''
+      comments: ''
+      data: true
+      description: ''
+      name: SpatialSeries
+      reference_frame: ''
 Ecephys:
   Device:
     name: Device

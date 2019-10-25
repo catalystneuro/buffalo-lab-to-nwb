@@ -7,16 +7,23 @@ import pynwb
 from hdmf.data_utils import DataChunkIterator
 from buffalonwb.exceptions import UnexpectedInputException
 from tqdm import trange
+import natsort
 
 
-def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
+def add_lfp(nwbfile, lfp_path, electrodes, iterator_flag, all_electrode_labels):
+    num_electrodes = len(all_electrode_labels)
     if iterator_flag:
         print("LFP adding via data chunk iterator")
-        lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1, lfp_path=lfp_path)
-        lfp_gen = lfp_generator(lfp_path=lfp_path, num_electrodes=num_electrodes)
+        lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1,
+                                                     lfp_path=lfp_path,
+                                                     all_electrode_labels=all_electrode_labels)
+        lfp_gen = lfp_generator(lfp_path=lfp_path, num_electrodes=num_electrodes,
+                                all_electrode_labels=all_electrode_labels)
         lfp_data = DataChunkIterator(data=lfp_gen, iter_axis=1)
     else:
-        lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=num_electrodes, lfp_path=lfp_path)
+        lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=num_electrodes,
+                                                          lfp_path=lfp_path,
+                                                          all_electrode_labels=all_electrode_labels)
 
     lfp_timestamps_sq = np.squeeze(lfp_timestamps)
     # if 1/(lfp_timestamps_sq[1]-lfp_timestamps_sq[0]) !=lfp_rate:
@@ -32,7 +39,6 @@ def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
         electrodes=electrodes,
         starting_time=float(lfp_timestamps_sq[0]),
         rate=lfp_rate,
-        comments="LFP",
         description="LFP"
     )
 
@@ -122,29 +128,40 @@ def check_get_scalar(v):
     return v[0][0]
 
 
-def get_lfp_data(num_electrodes, lfp_path):
-    all_files = os.listdir(lfp_path)
+def get_lfp_data(num_electrodes, lfp_path, all_electrode_labels):
+    all_files = natsort.natsorted(os.listdir(lfp_path))
     processed = MH_process_nlx_mat_file(lfp_path.joinpath(all_files[0]))
     num_ts = max(processed["lfp_ts"].shape)
-    lfp = np.full((num_electrodes, num_ts), np.nan)
+    lfp = np.full((num_ts, num_electrodes), np.nan)
     ts = processed["lfp_ts"]
     fs = processed["lfp_Fs"]
     # check if ts are all the same
+    lfp_channel_names = [x[:-7] for x in all_files]
+    file_counter = 0
     for i in trange(num_electrodes, desc='reading LFP'):
-        file_name = lfp_path.joinpath(all_files[i])
-        processed_file = MH_process_nlx_mat_file(file_name)
-        if processed_file:
-            lfp[i, :] = processed_file["lfp"]
+        if all_electrode_labels[i] in lfp_channel_names:
+            file_name = lfp_path.joinpath(all_files[file_counter])
+            file_counter += 1
+            processed_file = MH_process_nlx_mat_file(file_name)
+            lfp[:, i] = processed_file["lfp"]
+
     return lfp, ts, fs
 
 
-def lfp_generator(lfp_path, num_electrodes):
-    all_files = os.listdir(lfp_path)
+def lfp_generator(lfp_path, num_electrodes, all_electrode_labels):
+    all_lfp_files = natsort.natsorted(os.listdir(lfp_path))
+    lfp_channel_names = [x[:-7] for x in all_lfp_files]
     # generate lfp data chunks
+    file_counter = 0
     for i in trange(num_electrodes, desc='writing LFP'):
-        file_name = lfp_path.joinpath(all_files[i])
-        processed_data = MH_process_nlx_mat_file(file_name)
-        lfp_data = processed_data["lfp"]
-        del processed_data
-        yield np.squeeze(lfp_data).T
+        if all_electrode_labels[i] in lfp_channel_names:
+            file_name = lfp_path.joinpath(all_lfp_files[file_counter])
+            file_counter += 1
+            processed_data = MH_process_nlx_mat_file(file_name)
+            lfp_data = processed_data["lfp"]
+            nt = lfp_data.shape[1]
+            del processed_data
+            yield np.squeeze(lfp_data).T
+        else:
+            yield np.full((nt,), np.nan)
     return
