@@ -12,14 +12,14 @@ from tqdm import trange
 
 def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrodes):
     print("adding raw nlx data")
-    all_files = os.listdir(raw_nlx_path)
-    data_files = [i for i in all_files if '_' not in i]
+    all_files = sorted(raw_nlx_path.glob('CSC*.ncs'))
+    data_files = [i for i in all_files if '_' not in i.name]
 
-    raw_header, raw_ts, data = read_csc_file(raw_nlx_path.joinpath(data_files[0]))
+    # read first file to initialize a few vars
+    raw_header, raw_ts, data = read_csc_file(str(data_files[0]))
     conversion_factor = raw_header['ADBitVolts']
-
     rate = float(raw_header["SamplingFrequency"])
-    data = raw_generator(raw_nlx_path, num_electrodes)
+    data = raw_generator(raw_nlx_path, 2)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
                                    maxshape=(len(raw_ts), num_electrodes),
@@ -38,12 +38,12 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
 
 
 def raw_generator(raw_nlx_path, num_electrodes):
-    all_files = os.listdir(raw_nlx_path)
-    data_files = [i for i in all_files if '_' not in i]
-    #  generate raw data chunks for iterator
+    all_files = sorted(raw_nlx_path.glob('CSC*.ncs'))
+    data_files = [i for i in all_files if '_' not in i.name]
+
+    # generate raw data chunks for iterator
     for i in trange(num_electrodes, desc='writing raw data'):
-        file_name = raw_nlx_path.joinpath(data_files[i])
-        raw_header, raw_ts, raw_data = read_csc_file(file_name)
+        raw_header, raw_ts, raw_data = read_csc_file(str(data_files[i]))
         yield raw_data.astype(np.int16)
     return
 
@@ -88,7 +88,6 @@ def parse_header(header):
                 header_data[key] = line_parts[1] + ' ' + line_parts[2]
             else:
                 if len(line_parts) > 2:
-                    breakpoint()
                     raise UnexpectedInputException()
                 if key in {'InputInverted', 'DSPLowCutFilterEnabled', 'DSPHighCutFilterEnabled'}:
                     header_data[key] = bool(line_parts[1])
@@ -125,7 +124,8 @@ def read_csc_file(csc_data_file_name):
     file_size = os.path.getsize(csc_data_file_name)
     num_records = (file_size - header_size) / record_size
     if int(num_records) != num_records:  # check integer
-        raise UnexpectedInputException()
+        raise UnexpectedInputException('Number of records in %s must be an integer: %d' %
+                                       (csc_data_file_name, num_records))
     num_records = int(num_records)
 
     channel_number = None
@@ -184,4 +184,4 @@ def read_csc_file(csc_data_file_name):
             warn(('Last timestamp expected to be %d us based on starting time and sampling rate, but got %d us '
                   '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
 
-        return header_data, ts, data
+    return header_data, ts, data
