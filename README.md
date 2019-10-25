@@ -1,7 +1,7 @@
 # Buffalo-lab-data-to-nwb
 Scripts which convert Buffalo lab data to NWB format. Currently we only support conversion for processed data.
 
-authors: Luiz Tauffer, Ryan Ly, Maija Honig, Ben Dichter
+authors: Luiz Tauffer, Maija Honig, Ryan Ly, Ben Dichter
 
 ## Install
 
