@@ -2,28 +2,45 @@ from nexfile import nexwriter2
 import pynwb
 import sys
 from tqdm import trange
+import numpy as np
 
 
-def nwb_to_nex5(nwb_path, nex5_path):
+def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
+    """
+    Write the given NWB ElectricalSeries to a NEX5 file.
+    :param nwb_path: path to the NWB file.
+    :param elecseries_name: name of the ElectricalSeries to be written to file.
+    :param nex5_path: path to the NEX5 file to be written.
+    """
     with pynwb.NWBHDF5IO(nwb_path, 'r') as io:
         nwb = io.read()
-        raw_data_name = 'raw_ephys'
-        nChannels = nwb.acquisition[raw_data_name].data.shape[1]
-        timestampFrequency = nwb.acquisition[raw_data_name].rate
+        if elecseries_name not in nwb.acquisition:
+            raise Exception('NWB file %s does not have an acquisition named %s.' % (nwb_path, elecseries_name))
+
+        elecseries = nwb.acquisition[elecseries_name]
+        if not isinstance(elecseries, pynwb.ecephys.ElectricalSeries):
+            raise Exception('Acquisition %s must be of type ElectricalSeries.' % (elecseries_name))
+        if elecseries.data.dtype is not np.dtype(np.int16):
+            raise Exception('Acquisition %s must have int16 data.' % (elecseries_name))
+
+        nChannels = elecseries.data.shape[1]
+        timestampFrequency = elecseries.rate
+        conversion = elecseries.conversion*1000  # NEX5 stores data in millivolts, not volts
+
+        print(('Found ElectricalSeries "%s" with %d samples, %d channels, sampling rate %d Hz, AD to mV conversion '
+               'factor %f') % (elecseries_name, elecseries.data.shape[0], nChannels, timestampFrequency, conversion))
+
         writer = nexwriter2.NexWriter2(timestampFrequency, useNumpy=True)
-        for ch in trange(nChannels, desc='writing channels'):
+        for ch in trange(2, desc='writing channels'):
             writer.AddContVarWithSingleFragment(
                 name='channel_'+str(ch),
                 timestampOfFirstDataPoint=0,
                 SamplingRate=timestampFrequency,
-                values=nwb.acquisition[raw_data_name].data[:, ch]  # data is in int16
+                values=nwb.acquisition[elecseries_name].data[:, ch]  # data is in int16
             )
-
-        # NEX5 stores data in millivolts, not volts
-        conversion = nwb.acquisition[raw_data_name].conversion*1000
 
         writer.WriteNex5File(nex5_path, conversion=conversion)
 
 
 if __name__ == '__main__':
-    nwb_to_nex5(sys.argv[1], sys.argv[2])
+    nwb_to_nex5(sys.argv[1], sys.argv[2], sys.argv[3])
