@@ -13,6 +13,7 @@ import pytz
 import math
 import os
 import argparse
+import glob
 
 
 def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, lfp_iterator_flag, no_copy):
@@ -60,13 +61,14 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         metadata = yaml.safe_load(f)
 
     # Number of electrodes
-    if lfp_mat_path:
+    if raw_nlx_path:
+        csc_files = glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
+        if len(csc_files) % 2 == 1:
+            raise Exception('There must be two raw Neuralynx CSC (.ncs) files for each channel -- one for the header'
+                            ' and one for the data.')
+        num_channels = len(csc_files) // 2
+    elif lfp_mat_path:
         num_channels = len(os.listdir(lfp_mat_path))
-    elif raw_nlx_path:
-        if len(os.listdir(raw_nlx_path)) % 2 == 1:
-            raise Exception('There must be two raw NLX files for each channel -- one for the header and one for the '
-                            'data.')
-        num_channels = len(os.listdir(raw_nlx_path)) // 2
     else:
         raise Exception('The path to either raw or processed files must be provided '
                         'for the number of channels to be found.')
@@ -141,14 +143,14 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
 
         # Add LFPs
-        if lfp_mat_path is not None:
-            add_lfp(
-                nwbfile=nwbfile_proc,
-                lfp_path=lfp_mat_path,
-                num_electrodes=num_channels,
-                electrodes=electrode_table_region,
-                iterator_flag=lfp_iterator_flag
-            )
+        # if lfp_mat_path is not None:
+        #     add_lfp(
+        #         nwbfile=nwbfile_proc,
+        #         lfp_path=lfp_mat_path,
+        #         num_electrodes=num_channels,
+        #         electrodes=electrode_table_region,
+        #         iterator_flag=lfp_iterator_flag
+        #     )
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
@@ -201,7 +203,7 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
 # If called from terminal
 if __name__ == '__main__':
     """
-    Usage: python conversion_module.py [raw_nlx_dir] [lfp_mat_dir]
+    Usage: python conversion_module.py [raw_nlx_dir] [processed_mat_dir]
     [sorted_spikes_nex5_file] [behavior_file] [metadata_file] [output_file]
     [-skipraw] [-skipprocessed] [-lfpiterator] [-dontcopy]
     """
@@ -215,22 +217,22 @@ if __name__ == '__main__':
         help="Show the version, and exit.",
     )
     parser.add_argument(
-        "raw_nlx_dir", help="The path to the directory holding raw NLX files."
+        "raw_nlx_dir", help="The path to the directory holding raw Neuralynx CSC files."
     )
     parser.add_argument(
-        "lfp_mat_dir", help="The path to the LFP .mat file."
+        "processed_mat_dir", help="The path to the directory holding processed .mat files."
     )
     parser.add_argument(
         "sorted_spikes_nex5_file", help="The path to the sorted spikes NEX5 file."
     )
     parser.add_argument(
-        "behavior_file", help="The path to the processed behavior file."
+        "behavior_mat_file", help="The path to the processed behavior MAT file."
     )
     parser.add_argument(
-        "metadata_file", help="The path to the metadata file."
+        "metadata_yaml_file", help="The path to the metadata YAML file."
     )
     parser.add_argument(
-        "output_file", help="The path to the directory holding raw NLX files."
+        "output_file", help="The stem of the output file to be created."
     )
     parser.add_argument(
         "--skipraw",
@@ -265,14 +267,14 @@ if __name__ == '__main__':
 
     source_paths = {
         'raw Nlx': {'type': 'dir', 'path': args.raw_nlx_dir},
-        'processed Nlx': {'type': 'dir', 'path': args.lfp_mat_dir},
+        'processed Nlx': {'type': 'dir', 'path': args.processed_mat_dir},
         'sorted spikes': {'type': 'file', 'path': args.sorted_spikes_nex5_file},
-        'processed behavior': {'type': 'file', 'path': args.behavior_file}
+        'processed behavior': {'type': 'file', 'path': args.behavior_mat_file}
     }
 
     conversion_function(source_paths=source_paths,
                         f_nwb=args.output_file,
-                        metafile=args.metadata_file,
+                        metafile=args.metadata_yaml_file,
                         skip_raw=args.skipraw,
                         skip_processed=args.skipprocessed,
                         lfp_iterator_flag=args.lfpiterator,
