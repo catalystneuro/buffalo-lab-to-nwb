@@ -10,9 +10,10 @@ def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
     """
     Write the given NWB ElectricalSeries to a NEX5 file.
     :param nwb_path: path to the NWB file.
-    :param elecseries_name: name of the ElectricalSeries to be written to file.
+    :param elecseries_name: name of the ElectricalSeries in the NWB file to be written to the NEX5 file.
     :param nex5_path: path to the NEX5 file to be written.
     """
+
     with pynwb.NWBHDF5IO(nwb_path, 'r') as io:
         nwb = io.read()
         if elecseries_name not in nwb.acquisition:
@@ -31,13 +32,14 @@ def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
         print(('Found ElectricalSeries "%s" with %d samples, %d channels, sampling rate %d Hz, AD to mV conversion '
                'factor %f') % (elecseries_name, elecseries.data.shape[0], nChannels, timestampFrequency, conversion))
 
+        # use modified nexwriter in order to handle AD (int16) data and given conversion factor
         writer = nexwriter2.NexWriter2(timestampFrequency, useNumpy=True)
         for ch in trange(nChannels, desc='writing channels'):
             writer.AddContVarWithSingleFragment(
                 name='channel_'+str(ch),
                 timestampOfFirstDataPoint=0,
                 SamplingRate=timestampFrequency,
-                values=nwb.acquisition[elecseries_name].data[:, ch]  # data is in int16
+                values=nwb.acquisition[elecseries_name].data[:, ch]
             )
 
         writer.WriteNex5File(nex5_path, conversion=conversion)
@@ -49,7 +51,7 @@ def main():
         "nwb_path", help="The path to the NWB file."
     )
     parser.add_argument(
-        "elecseries_name", help="The name of the ElectricalSeries to be written to file."
+        "elecseries_name", help="The name of the ElectricalSeries in the NWB file to be written to the NEX5 file."
     )
     parser.add_argument(
         "nex5_path", help="The path to the NEX5 file to be written."
