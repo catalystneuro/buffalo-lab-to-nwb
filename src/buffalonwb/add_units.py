@@ -94,8 +94,8 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False, max_num_channels=
     # support soft clustering
     # each row of the Units table will have a sparse vector 1 x total_num_spikes where each element
     # is the probability that that spike waveform comes from the current unit (the current row)
-    nwbfile.add_unit_column('probabilities', 'probability that each spike came from each unit',
-                            data_chunk_iterator_num_vals=total_num_spikes)
+    nwbfile.add_unit_column('probabilities', 'probability that each spike came from each unit')
+                            #data_chunk_iterator_num_vals=total_num_spikes)
 
     for i in range(4): #num_units):
         var_idx = start_var + i

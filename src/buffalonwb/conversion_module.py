@@ -129,26 +129,26 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             electrode_table_region = nwbfile_proc.acquisition['raw_ephys'].electrodes
 
         # Add processed behavior data
-        if behavior_file is not None:
-            add_behavior(
-                nwbfile=nwbfile_proc,
-                behavior_file=str(behavior_file),
-                metadata_behavior=metadata['Behavior']
-            )
+        # if behavior_file is not None:
+        #     add_behavior(
+        #         nwbfile=nwbfile_proc,
+        #         behavior_file=str(behavior_file),
+        #         metadata_behavior=metadata['Behavior']
+        #     )
 
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
 
         # Add LFPs
-        if lfp_mat_path is not None:
-            add_lfp(
-                nwbfile=nwbfile_proc,
-                lfp_path=lfp_mat_path,
-                num_electrodes=num_channels,
-                electrodes=electrode_table_region,
-                iterator_flag=lfp_iterator_flag
-            )
+        # if lfp_mat_path is not None:
+        #     add_lfp(
+        #         nwbfile=nwbfile_proc,
+        #         lfp_path=lfp_mat_path,
+        #         num_electrodes=num_channels,
+        #         electrodes=electrode_table_region,
+        #         iterator_flag=lfp_iterator_flag
+        #     )
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
