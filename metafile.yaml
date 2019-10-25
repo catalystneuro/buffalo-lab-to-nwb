@@ -18,17 +18,17 @@ Behavior:
         reference_frame: ''
 Ecephys:
   Device:
-    name: Device
+    name: ADDME
   ElectrodeGroup:
-    description: description
-    device: Device
+    description: ''
+    device: ADDME
     location: Hippocampus
     name: ElectrodeGroup
 NWBFile:
   data_collection: ''
-  experiment_description: ADDME
+  experiment_description: ''
   experimenter: Yoni Browning
-  identifier: ABC123
+  identifier: ADDME
   institution: University of Washington
   keywords:
   - ''
@@ -37,8 +37,8 @@ NWBFile:
   pharmacology: ''
   protocol: ''
   related_publications: ''
-  session_description: session_description
-  session_id: ADDME
+  session_description: ADDME
+  session_id: ''
   slices: ''
   stimulus_notes: ''
   surgery: ''

@@ -17,7 +17,7 @@ import argparse
 
 def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, lfp_iterator_flag, no_copy):
     """
-    Main function for conversion from Buffalo's lab data to NWB.
+    Main function for conversion from Buffalo's lab data formats to NWB.
 
     Parameters
     ----------
@@ -61,9 +61,12 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
 
     # Number of electrodes
     if lfp_mat_path:
-        nChannels = len(os.listdir(lfp_mat_path))
+        num_channels = len(os.listdir(lfp_mat_path))
     elif raw_nlx_path:
-        nChannels = len(os.listdir(raw_nlx_path)) // 2
+        if len(os.listdir(raw_nlx_path)) % 2 == 1:
+            raise Exception('There must be two raw NLX files for each channel -- one for the header and one for the '
+                            'data.')
+        num_channels = len(os.listdir(raw_nlx_path)) // 2
     else:
         raise Exception('The path to either raw or processed files must be provided '
                         'for the number of channels to be found.')
@@ -72,7 +75,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     session_start_time = datetime.strptime(behavior_file.stem[8:], '%Y-%m-%d_%H-%M-%S')
     session_start_time = pytz.timezone('US/Pacific').localize(session_start_time)
 
-    # MAKE NWB FILE
+    # build NWB file
     nwbfile = NWBFile(
         session_description=metadata['NWBFile']["session_description"],
         identifier=metadata['NWBFile']["identifier"],
@@ -92,25 +95,25 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
         metadata_ecephys=metadata['Ecephys'],
-        num_electrodes=nChannels
+        num_electrodes=num_channels
     )
 
     if skip_raw:
         print("skipping raw data...")
     if not skip_raw:
-        # Raw data
+        # Add raw data
         add_raw_nlx_data(
             nwbfile=nwbfile,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
-            num_electrodes=nChannels
+            num_electrodes=num_channels
         )
 
-        # Write raw
+        # Write raw data to NWB file
+        print('Writing to file: ' + out_file_raw)
         with NWBHDF5IO(out_file_raw, mode='w') as io:
-            print('Writing to file: ' + out_file_raw)
             io.write(nwbfile)
-            print(nwbfile)
+        print(nwbfile)
 
     if skip_processed:
         print("skipping processed data...")
@@ -118,14 +121,14 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         if no_copy or skip_raw:
             nwbfile_proc = nwbfile
         else:
-            # copy from raw to maintain file linkage
+            # Copy from raw data NWB file to maintain file linkage
+            print('copying NWB file ' + out_file_raw)
             raw_io = NWBHDF5IO(out_file_raw, mode='r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
             electrode_table_region = nwbfile_proc.acquisition['raw_ephys'].electrodes
-            print('Copying NWB file ' + out_file_raw)
 
-        # BEHAVIOR (PROCESSED)
+        # Add processed behavior data
         if behavior_file is not None:
             add_behavior(
                 nwbfile=nwbfile_proc,
@@ -133,49 +136,50 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
                 metadata_behavior=metadata['Behavior']
             )
 
-        # PROCESSED COMPONENTS
-        # UNITS
+        # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(nwbfile=nwbfile_proc, nex_file_name=sorted_spikes_nex5_file)
 
-        # LFP
+        # Add LFPs
         if lfp_mat_path is not None:
             add_lfp(
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
-                num_electrodes=nChannels,
+                num_electrodes=num_channels,
                 electrodes=electrode_table_region,
                 iterator_flag=lfp_iterator_flag
             )
 
-        # WRITE PROCESSED
+        # Write processed data to NWB file
+        print('Writing to file: ' + out_file_processed)
         if no_copy or skip_raw:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
-                print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile_proc)
-                print(nwbfile)
         else:
             with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-                print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile_proc)
-                print(nwbfile)
-        if 'raw_io' in locals():
             raw_io.close()
+
+        print(nwbfile_proc)
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
     # Add device
     device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
 
-    # Add electrodes
+    # Add electrode group -- assume only one
     metadata_eg = metadata_ecephys['ElectrodeGroup']
+    if metadata_eg['device'] != device.name:
+        raise Exception('Name of device in ElectrodeGroup must match the single Device name in the metadata YAML file')
     electrode_group = nwbfile.create_electrode_group(name=metadata_eg['name'],
                                                      description=metadata_eg['description'],
                                                      location=metadata_eg['location'],
                                                      device=device)
 
+    # Add electrodes with IDs starting at 1. No location or impedance specified.
     for id in range(1, num_electrodes + 1):
         nwbfile.add_electrode(
+            id=id,
             x=math.nan,
             y=math.nan,
             z=math.nan,
@@ -183,10 +187,9 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes):
             location=electrode_group.location,
             filtering='none',
             group=electrode_group,
-            id=id
         )
 
-    # all electrodes in table region
+    # Create an electrode table region encompassing all electrodes
     electrode_table_region = nwbfile.create_electrode_table_region(
         region=list(range(0, num_electrodes)),
         description='all the electrodes'
