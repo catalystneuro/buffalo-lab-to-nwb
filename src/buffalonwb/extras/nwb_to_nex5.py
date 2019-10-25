@@ -3,6 +3,7 @@ import pynwb
 import sys
 from tqdm import trange
 import numpy as np
+import argparse
 
 
 def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
@@ -42,5 +43,20 @@ def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
         writer.WriteNex5File(nex5_path, conversion=conversion)
 
 
+def main():
+    parser = argparse.ArgumentParser("A script to write an ElectricalSeries in an NWB file to a NEX5 file.")
+    parser.add_argument(
+        "nwb_path", help="The path to the NWB file."
+    )
+    parser.add_argument(
+        "elecseries_name", help="The name of the ElectricalSeries to be written to file."
+    )
+    parser.add_argument(
+        "nex5_path", help="The path to the NEX5 file to be written."
+    )
+    args = parser.parse_args()
+    nwb_to_nex5(args.nwb_path, args.elecseries_name, args.nex5_path)
+
+
 if __name__ == '__main__':
-    nwb_to_nex5(sys.argv[1], sys.argv[2], sys.argv[3])
+    main()
