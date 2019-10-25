@@ -68,26 +68,26 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         raise Exception('The path to either raw or processed files must be provided '
                         'for the number of channels to be found.')
 
-    # Check if timestamps_reference_time was given in metadata
-    if "timestamps_reference_time" not in metadata:
-        timezone = pytz.timezone('US/Pacific')
-        metadata["timestamps_reference_time"] = timezone.localize(datetime.now())
+    # parse filename of behavior mat file for session_start_time, localize to Pacific time for Buffalo Lab
+    session_start_time = datetime.strptime(behavior_file.stem[8:], '%Y-%m-%d_%H-%M-%S')
+    session_start_time = pytz.timezone('US/Pacific').localize(session_start_time)
 
     # MAKE NWB FILE
-    nwbfile = NWBFile(session_description=metadata['NWBFile']["session_description"],
-                      identifier=metadata['NWBFile']["identifier"],
-                      session_id=metadata['NWBFile']["session_id"],
-                      session_start_time=metadata['NWBFile']['session_start_time'],
-                      timestamps_reference_time=metadata["timestamps_reference_time"],
-                      notes=metadata['NWBFile']["notes"],
-                      stimulus_notes=metadata['NWBFile']["stimulus_notes"],
-                      data_collection=metadata['NWBFile']["data_collection"],
-                      experiment_description=metadata['NWBFile']["experiment_description"],
-                      protocol=metadata['NWBFile']["protocol"],
-                      keywords=metadata['NWBFile']["keywords"],
-                      experimenter=metadata['NWBFile']["experimenter"],
-                      lab=metadata['NWBFile']["lab"],
-                      institution=metadata['NWBFile']["institution"])
+    nwbfile = NWBFile(
+        session_description=metadata['NWBFile']["session_description"],
+        identifier=metadata['NWBFile']["identifier"],
+        session_id=metadata['NWBFile']["session_id"],
+        session_start_time=session_start_time,
+        notes=metadata['NWBFile']["notes"],
+        stimulus_notes=metadata['NWBFile']["stimulus_notes"],
+        data_collection=metadata['NWBFile']["data_collection"],
+        experiment_description=metadata['NWBFile']["experiment_description"],
+        protocol=metadata['NWBFile']["protocol"],
+        keywords=metadata['NWBFile']["keywords"],
+        experimenter=metadata['NWBFile']["experimenter"],
+        lab=metadata['NWBFile']["lab"],
+        institution=metadata['NWBFile']["institution"]
+    )
 
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,

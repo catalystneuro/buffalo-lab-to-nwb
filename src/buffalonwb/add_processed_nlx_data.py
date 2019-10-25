@@ -11,7 +11,7 @@ from tqdm import trange
 
 def add_lfp(nwbfile, lfp_path, num_electrodes, electrodes, iterator_flag):
     if iterator_flag:
-        print("LFP adding via data chunk iterator")
+        print("adding LFP via data chunk iterator")
         lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1, lfp_path=lfp_path)
         lfp_gen = lfp_generator(lfp_path=lfp_path, num_electrodes=num_electrodes)
         lfp_data = DataChunkIterator(data=lfp_gen, iter_axis=1)

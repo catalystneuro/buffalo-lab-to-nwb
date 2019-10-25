@@ -32,14 +32,13 @@ NWBFile:
   institution: University of Washington
   keywords:
   - ''
-  lab: Buffalo lab
+  lab: Buffalo Lab
   notes: ''
   pharmacology: ''
   protocol: ''
   related_publications: ''
   session_description: session_description
   session_id: ADDME
-  session_start_time: 2019-09-16 17:10:00
   slices: ''
   stimulus_notes: ''
   surgery: ''
