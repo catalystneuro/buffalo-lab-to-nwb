@@ -4,6 +4,7 @@ import sys
 from tqdm import trange
 import numpy as np
 import argparse
+import datetime
 
 
 def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
@@ -25,21 +26,29 @@ def nwb_to_nex5(nwb_path, elecseries_name, nex5_path):
         if elecseries.data.dtype is not np.dtype(np.int16):
             raise Exception('Acquisition %s must have int16 data.' % (elecseries_name))
 
-        nChannels = elecseries.data.shape[1]
-        timestampFrequency = elecseries.rate
+        num_channels = elecseries.data.shape[1]
+        start_time = nwb.timestamps_reference_time
+        timestamp_freq = elecseries.rate
         conversion = elecseries.conversion*1000  # NEX5 stores data in millivolts, not volts
 
-        print(('Found ElectricalSeries "%s" with %d samples, %d channels, sampling rate %d Hz, AD to mV conversion '
-               'factor %f') % (elecseries_name, elecseries.data.shape[0], nChannels, timestampFrequency, conversion))
+        print('Found ElectricalSeries "%s" data:' % elecseries_name)
+        print('num samples: \t\t\t%d' % elecseries.data.shape[0])
+        print('num channels: \t\t\t%d' % num_channels)
+        print('start time: \t\t\t%s (%f seconds)' % (start_time, start_time.timestamp()))
+        print('sampling rate: \t\t\t%f' % timestamp_freq)
+        print('AD to mV conversion factor: \t%f' % conversion)
+        print('elecseries starting time: \t%s (%f seconds)'
+              % (datetime.datetime.fromtimestamp(elecseries.starting_time / 1000), elecseries.starting_time / 1000))
+        breakpoint()
 
         # use modified nexwriter in order to handle AD (int16) data and given conversion factor
-        writer = nexwriter2.NexWriter2(timestampFrequency, useNumpy=True)
-        for ch in trange(nChannels, desc='writing channels'):
+        writer = nexwriter2.NexWriter2(timestamp_freq, useNumpy=True)
+        for ch in trange(2, desc='Writing channels to NEX5 file'):
             writer.AddContVarWithSingleFragment(
                 name='channel_'+str(ch),
-                timestampOfFirstDataPoint=0,
-                SamplingRate=timestampFrequency,
-                values=nwb.acquisition[elecseries_name].data[:, ch]
+                timestampOfFirstDataPoint=start_time.timestamp(),
+                SamplingRate=timestamp_freq,
+                values=elecseries.data[:, ch]
             )
 
         writer.WriteNex5File(nex5_path, conversion=conversion)
