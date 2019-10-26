@@ -63,7 +63,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
 
     # Number of electrodes
     electrode_labels = natsorted([os.path.split(x)[1][:-4]
-                                  for x in glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
+                                  for x in raw_nlx_path.glob('CSC*.ncs')
                                   if '_' not in os.path.split(x)[1]])
 
     # parse filename of behavior mat file for session_start_time, localize to Pacific time for Buffalo Lab
