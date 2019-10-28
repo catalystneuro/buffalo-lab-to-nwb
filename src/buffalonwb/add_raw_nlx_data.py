@@ -8,15 +8,16 @@ from warnings import warn
 from hdmf.data_utils import DataChunkIterator
 from pynwb.ecephys import ElectricalSeries
 from tqdm import trange
+from natsort import natsorted
 
 
 def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrodes):
     print("adding raw nlx data")
-    all_files = sorted(raw_nlx_path.glob('CSC*.ncs'))
-    data_files = [i for i in all_files if '_' not in i.name]
+    data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
+    data_paths = [raw_nlx_path / x for x in data_files]
 
     # read first file to initialize a few vars
-    raw_header, raw_ts, data = read_csc_file(str(data_files[0]))
+    raw_header, raw_ts, data = read_csc_file(str(data_paths[0]))
     conversion_factor = raw_header['ADBitVolts']
     rate = float(raw_header["SamplingFrequency"])
     data = raw_generator(raw_nlx_path, 2)
@@ -38,18 +39,18 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
 
 
 def raw_generator(raw_nlx_path, num_electrodes):
-    all_files = sorted(raw_nlx_path.glob('CSC*.ncs'))
-    data_files = [i for i in all_files if '_' not in i.name]
+    data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
+    data_paths = [raw_nlx_path / x for x in data_files]
 
     # generate raw data chunks for iterator
     for i in trange(num_electrodes, desc='writing raw data'):
-        raw_header, raw_ts, raw_data = read_csc_file(str(data_files[i]))
+        raw_header, raw_ts, raw_data = read_csc_file(str(data_paths[i]))
         yield raw_data.astype(np.int16)
     return
 
 
 # RAW DATA FUNCTIONS
-def parse_header(header):
+def parse_header(header):  # noqa: C901
     """Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
     Input:
       header -- 16384 bytes of header contents
@@ -138,7 +139,9 @@ def read_csc_file(csc_data_file_name):
         header_data = parse_header(header)
 
         # first_ts_r: Cheetah timestamp for this record. This corresponds to the sample time for the first data point
-        # in the data array, in MICROseconds.
+        # in the data array, in MICROseconds. This timestamp appears not to have any real-world meaning. i.e., the
+        # difference between the file creation time in microseconds and this timestamp is not at all consistent between
+        # recordings.
         # channel_number_r: The channel number for this record. This is NOT the A/D channel number.
         # Fs_r: The sampling frequency (Hz) for the data array.
         # num_valid_samples_r: Number of values in the data array containing valid data (max 512).

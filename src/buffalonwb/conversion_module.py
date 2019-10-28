@@ -11,9 +11,7 @@ from pathlib import Path
 import ruamel.yaml as yaml
 import pytz
 import math
-import os
 import argparse
-import glob
 from natsort import natsorted
 
 
@@ -62,12 +60,10 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         metadata = yaml.safe_load(f)
 
     # Number of electrodes
-    electrode_labels = natsorted([os.path.split(x)[1][:-4]
-                                  for x in raw_nlx_path.glob('CSC*.ncs')
-                                  if '_' not in os.path.split(x)[1]])
+    electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
 
     # parse filename of behavior mat file for session_start_time, localize to Pacific time for Buffalo Lab
-    session_start_time = datetime.strptime(behavior_file.stem[8:], '%Y-%m-%d_%H-%M-%S')
+    session_start_time = datetime.strptime('2017-05-04_11-23-13', '%Y-%m-%d_%H-%M-%S')
     session_start_time = pytz.timezone('US/Pacific').localize(session_start_time)
     metadata['NWBFile']['session_start_time'] = session_start_time
 
