@@ -33,6 +33,7 @@ NWBFile:
   session_description: ADDME
   session_id: ADDME
   related_publications:
+  session_start_time: 2017-05-04 11:23:13
   slices:
   stimulus_notes:
   surgery:

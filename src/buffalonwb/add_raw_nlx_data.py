@@ -11,7 +11,8 @@ from tqdm import trange
 from natsort import natsorted
 
 
-def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrodes):
+def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
+    breakpoint()
     print("adding raw nlx data")
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
     data_paths = [raw_nlx_path / x for x in data_files]
@@ -20,7 +21,9 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region, num_electrod
     raw_header, raw_ts, data = read_csc_file(str(data_paths[0]))
     conversion_factor = raw_header['ADBitVolts']
     rate = float(raw_header["SamplingFrequency"])
-    data = raw_generator(raw_nlx_path, 2)
+    num_electrodes = 2
+    # num_electrodes = len(electrode_table_region)
+    data = raw_generator(raw_nlx_path, num_electrodes)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
                                    maxshape=(len(raw_ts), num_electrodes),

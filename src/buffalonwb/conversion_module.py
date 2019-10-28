@@ -17,7 +17,7 @@ from natsort import natsorted
 
 def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
     """
-    Main function for conversion from Buffalo's lab data formats to NWB.
+    Main function for conversion of Buffalo lab data from Neuralynx/Matlab/Neuroexplorer formats to NWB.
 
     Parameters
     ----------
@@ -43,12 +43,24 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         if source_paths[k]['path'] != '':
             if k == 'raw Nlx':
                 raw_nlx_path = Path(source_paths[k]['path'])
+                if not raw_nlx_path.is_dir():
+                    raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
             if k == 'processed Nlx':
                 lfp_mat_path = Path(source_paths[k]['path'])
+                if not lfp_mat_path.is_dir():
+                    raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
             if k == 'processed behavior':
                 behavior_file = Path(source_paths[k]['path'])
+                if not behavior_file.is_file():
+                    raise ValueError('Behavior file must be a file: %s' % behavior_file)
+                if behavior_file.suffix != ".mat":
+                    raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
             if k == 'sorted spikes':
                 sorted_spikes_nex5_file = Path(source_paths[k]['path'])
+                if not sorted_spikes_nex5_file.is_file():
+                    raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
+                if sorted_spikes_nex5_file.suffix != ".nex5":
+                    raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
 
     # Output files
     nwbpath = Path(f_nwb).parent
@@ -59,17 +71,19 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     with open(metafile) as f:
         metadata = yaml.safe_load(f)
 
-    # Number of electrodes
+    # Get electrode labels from raw nlx directory file names
     electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
 
-    # parse filename of behavior mat file for session_start_time, localize to Pacific time for Buffalo Lab
-    session_start_time = datetime.strptime('2017-05-04_11-23-13', '%Y-%m-%d_%H-%M-%S')
-    session_start_time = pytz.timezone('US/Pacific').localize(session_start_time)
-    metadata['NWBFile']['session_start_time'] = session_start_time
+    # localize session start time to Pacific time for Buffalo Lab
+    # TODO this time has only seconds resolution, not ms or us. where is this information?
+    metadata['NWBFile']['session_start_time'] = pytz.timezone('US/Pacific').localize(
+        metadata['NWBFile']['session_start_time']
+    )
 
-    # build NWB file
+    # Build NWB file
     nwbfile = NWBFile(**metadata['NWBFile'])
 
+    # Add device and electrodes based on given metadata and electrode labels
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
         metadata_ecephys=metadata['Ecephys'],
@@ -85,7 +99,6 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             nwbfile=nwbfile,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
-            num_electrodes=len(electrode_labels)
         )
 
         # Write raw data to NWB file
