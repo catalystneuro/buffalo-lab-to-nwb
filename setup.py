@@ -25,7 +25,7 @@ setup_args = {
     'license': "BSD",
     'install_requires':
     [
-        'pynwb', 'scipy', 'tqdm', 'natsort'
+        'pynwb', 'scipy', 'tqdm', 'natsort', 'colorama'
     ],
     'packages': pkgs,
     'package_dir': {'': 'src'},

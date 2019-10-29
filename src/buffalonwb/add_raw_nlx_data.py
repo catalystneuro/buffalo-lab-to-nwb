@@ -1,19 +1,19 @@
-import os
 import numpy as np
 from datetime import datetime
-from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 from uuid import UUID
 from struct import unpack
 from warnings import warn
-from hdmf.data_utils import DataChunkIterator
-from pynwb.ecephys import ElectricalSeries
 from tqdm import trange
 from natsort import natsorted
+from hdmf.data_utils import DataChunkIterator
+from pynwb.ecephys import ElectricalSeries
+
+from buffalonwb.exceptions import InconsistentInputException, UnexpectedInputException
 
 
 _CSC_HEADER_SIZE = 16384  # bytes
 _CSC_SAMPLES_PER_RECORD = 512  # int16 array
-_CSC_RECORD_HEADER_SIZE = 20  # 1 uint64 (1*8) + 3 uint32 (3*4)
+_CSC_RECORD_HEADER_SIZE = 20  # bytes: 1 uint64 (1*8) + 3 uint32 (3*4)
 _CSC_RECORD_SIZE = _CSC_RECORD_HEADER_SIZE + _CSC_SAMPLES_PER_RECORD * 2
 
 
@@ -24,29 +24,27 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
     data_paths = [raw_nlx_path / x for x in data_files]
 
-    # read first file to initialize a few variables
-    first_filename = str(data_paths[0])
-    raw_header = read_header(first_filename)
-    conversion_factor = raw_header['ADBitVolts']
+    # read first file fully to initialize a few variables
+    raw_header, raw_ts, _ = read_csc_file(data_paths[0])
+    starting_time = float(raw_ts[0])
     rate = float(raw_header["SamplingFrequency"])
-
-    first_ts = read_first_timestamp(first_filename)
-    breakpoint()
+    conversion_factor = raw_header['ADBitVolts']
 
     num_electrodes = 2
     # num_electrodes = len(electrode_table_region)
     data = raw_generator(raw_nlx_path, num_electrodes)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
+                                   maxshape=(len(raw_ts), num_electrodes),
                                    dtype=np.dtype('int16'))
 
     ephys_ts = ElectricalSeries(name='raw_ephys',
                                 data=ephys_data,
                                 electrodes=electrode_table_region,
-                                starting_time=first_ts,
+                                starting_time=starting_time,
                                 rate=rate,
                                 conversion=conversion_factor,
-                                description="This is a recording from hippocampus")
+                                description="This is a recording from the hippocampus")
     nwbfile.add_acquisition(ephys_ts)
 
 
@@ -57,18 +55,9 @@ def raw_generator(raw_nlx_path, num_electrodes):
     data_paths = [raw_nlx_path / x for x in data_files]
 
     # generate raw data chunks for data chunk iterator
-    for i in trange(num_electrodes, desc='writing raw data'):
-        _, _, raw_data = read_csc_file(str(data_paths[i]))
+    for i in trange(num_electrodes, desc='Writing raw data'):
+        _, _, raw_data = read_csc_file(data_paths[i])
         yield raw_data.astype(np.int16)
-
-
-def read_header(csc_data_file_name):
-    """Read the header (first 16 kB) of a CSC file
-    """
-    with open(csc_data_file_name, 'rb') as data_file:
-        header = data_file.read(_CSC_HEADER_SIZE)
-        header_data = parse_header(header)
-        return header_data
 
 
 def parse_header(header):  # noqa: C901
@@ -137,28 +126,28 @@ def parse_header(header):  # noqa: C901
     return header_data
 
 
-def check_num_records(csc_data_file_name):
+def check_num_records(csc_file_path):
     """Check that the size of the file is consistent with an integer number of records and return the number of records.
     """
-    file_size = os.path.getsize(csc_data_file_name)
+    file_size = csc_file_path.stat().st_size
     num_records = (file_size - _CSC_HEADER_SIZE) / _CSC_RECORD_SIZE
     if int(num_records) != num_records:  # check integer
         raise UnexpectedInputException('Number of records in %s must be an integer: %d' %
-                                       (csc_data_file_name, num_records))
+                                       (str(csc_file_path), num_records))
     return int(num_records)
 
 
-def read_csc_file(csc_data_file_name):
+def read_csc_file(csc_file_path):
     """Read and parse a CSC .ncs file.
     """
-    num_records = check_num_records(csc_data_file_name)
+    num_records = check_num_records(csc_file_path)
 
     channel_number = None
     Fs = None
     ts = np.ndarray((num_records * _CSC_SAMPLES_PER_RECORD, ), dtype=np.uint64)
     data = np.ndarray((num_records * _CSC_SAMPLES_PER_RECORD, ))
 
-    with open(csc_data_file_name, 'rb') as data_file:
+    with open(csc_file_path, 'rb') as data_file:
         header = data_file.read(_CSC_HEADER_SIZE)
         header_data = parse_header(header)
 
@@ -167,8 +156,8 @@ def read_csc_file(csc_data_file_name):
         # channel_number_r: The channel number for this record. This is NOT the A/D channel number.
         # Fs_r: The sampling frequency (Hz) for the data array.
         # num_valid_samples_r: Number of values in the data array containing valid data (max 512).
-        record_ind = 0
-        while record_ind < num_records:
+        # NOTE: for nested progress bars on Windows, the colorama package is required
+        for record_ind in trange(num_records, desc='Reading raw data: %s' % csc_file_path.stem, leave=False):
             read_record_header = data_file.read(_CSC_RECORD_HEADER_SIZE)
             first_ts_r, channel_number_r, Fs_r, num_valid_samples_r = unpack('<QIII', read_record_header)
 
@@ -191,7 +180,6 @@ def read_csc_file(csc_data_file_name):
                                                         first_ts_r + _CSC_SAMPLES_PER_RECORD * 1e6 / Fs,
                                                         1e6 / Fs)
             data[data_ind_start:data_ind_end] = np.fromfile(data_file, dtype='<h', count=_CSC_SAMPLES_PER_RECORD)
-            record_ind = record_ind + 1
 
         # is there still data in the file?
         leftover_data = data_file.read()
@@ -210,16 +198,3 @@ def read_csc_file(csc_data_file_name):
                   '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
 
         return header_data, ts, data
-
-
-def read_first_timestamp(csc_data_file_name):
-    """Read just the first timestamp of a CSC .ncs file.
-    """
-
-    with open(csc_data_file_name, 'rb') as data_file:
-        data_file.seek(_CSC_HEADER_SIZE)
-
-        # first_ts_r: Cheetah timestamp for this record. This corresponds to the sample time for the first data point
-        # in the data array, in MICROseconds. This timestamp appears not to have any real-world meaning.
-        first_ts_r = np.fromfile(data_file, dtype='<Q', count=1)
-        return first_ts_r[0]
