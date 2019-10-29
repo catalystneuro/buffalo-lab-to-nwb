@@ -18,7 +18,7 @@ _CSC_RECORD_SIZE = _CSC_RECORD_HEADER_SIZE + _CSC_SAMPLES_PER_RECORD * 2
 
 
 def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
-    print("adding raw nlx data")
+    print('Adding raw NLX data using data chunk iterator')
 
     # get paths to all CSC data files, excluding the 16 kB header files with '_' in the name
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
@@ -27,7 +27,7 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     # read first file fully to initialize a few variables
     raw_header, raw_ts, _ = read_csc_file(data_paths[0])
     starting_time = float(raw_ts[0])
-    rate = float(raw_header["SamplingFrequency"])
+    rate = float(raw_header['SamplingFrequency'])
     conversion_factor = raw_header['ADBitVolts']
 
     num_electrodes = 2
@@ -38,13 +38,15 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
                                    maxshape=(len(raw_ts), num_electrodes),
                                    dtype=np.dtype('int16'))
 
-    ephys_ts = ElectricalSeries(name='raw_ephys',
+    # NOTE: starting time and rate are provided instead of timestamps. rate may be 32000.012966 Hz rather than 32000 Hz
+    # but use the reported 32000 Hz anyway.
+    ephys_ts = ElectricalSeries(name='ElectricalSeries',
                                 data=ephys_data,
                                 electrodes=electrode_table_region,
                                 starting_time=starting_time,
                                 rate=rate,
                                 conversion=conversion_factor,
-                                description="This is a recording from the hippocampus")
+                                description='This is a recording from the hippocampus')
     nwbfile.add_acquisition(ephys_ts)
 
 
@@ -56,15 +58,21 @@ def raw_generator(raw_nlx_path, num_electrodes):
 
     # generate raw data chunks for data chunk iterator
     for i in trange(num_electrodes, desc='Writing raw data'):
-        _, _, raw_data = read_csc_file(data_paths[i])
+        _, raw_ts, raw_data = read_csc_file(data_paths[i])
+        if i == 0:
+            raw_ts_ch0 = raw_ts
+        else:
+            if not np.all(raw_ts_ch0 == raw_ts):
+                raise InconsistentInputException('Timestamps are not aligned between %s and %s'
+                                                 % (data_paths[0], data_paths[i]))
         yield raw_data.astype(np.int16)
 
 
 def parse_header(header):  # noqa: C901
-    """Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
-    Input:
-      header -- 16384 bytes of header contents
-    Returns dictionary of header metadata
+    """
+    Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
+    :param header: 16384 bytes of header contents
+    :return: dictionary of header metadata
     """
     header_data = dict()
     for line in header.splitlines():
@@ -192,9 +200,12 @@ def read_csc_file(csc_file_path):
         data = np.delete(data, np.s_[-(_CSC_SAMPLES_PER_RECORD - num_valid_samples_r):])
 
         # check that final timestamp makes sense
+        # NOTE: a discrepancy of 1 us occurs approximately once every 155-157 records, resulting in a sampling rate
+        # just larger than 32 kHz
         expected_last_ts = ts[0] + len(ts) * 1e6 / Fs
         if abs(expected_last_ts - ts[-1]) > 0:
             warn(('Last timestamp expected to be %d us based on starting time and sampling rate, but got %d us '
-                  '(difference of %0.3f ms)') % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000))
+                  '(difference of %0.3f ms). Actual sampling rate may be %f Hz.')
+                 % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000, 1e6 * len(ts) / (ts[-1] - ts[0])))
 
         return header_data, ts, data
