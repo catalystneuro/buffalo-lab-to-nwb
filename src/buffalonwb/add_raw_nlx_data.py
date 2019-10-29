@@ -40,7 +40,7 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     # TODO put header data into NWBFile under Neuraalynx device
 
     num_electrodes = 2
-    data = raw_generator(raw_nlx_path, num_electrodes)
+    data = raw_generator(raw_nlx_path)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
                                    maxshape=(len(raw_ts), num_electrodes),
