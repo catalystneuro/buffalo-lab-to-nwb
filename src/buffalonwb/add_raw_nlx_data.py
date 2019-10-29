@@ -18,20 +18,28 @@ _CSC_RECORD_SIZE = _CSC_RECORD_HEADER_SIZE + _CSC_SAMPLES_PER_RECORD * 2
 
 
 def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
+    """Add raw acquisition data from Neuralynx CSC .ncs files to an NWB file using a data chunk iterator
+    :param nwbfile: The NWBFile object
+    :param raw_nlx_path: Path object for directory of raw NLX CSC files
+    :param electrode_table_region: The set of electrodes corresponding to these acquisition time series data. There
+    should be one .ncs data file for every electrode in the electrode_table_region.
+    """
     print('Adding raw NLX data using data chunk iterator')
+    num_electrodes = len(electrode_table_region)
 
     # get paths to all CSC data files, excluding the 16 kB header files with '_' in the name
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
     data_paths = [raw_nlx_path / x for x in data_files]
+    assert(len(data_paths) == num_electrodes)
 
     # read first file fully to initialize a few variables
     raw_header, raw_ts, _ = read_csc_file(data_paths[0])
     starting_time = float(raw_ts[0])
     rate = float(raw_header['SamplingFrequency'])
     conversion_factor = raw_header['ADBitVolts']
+    # TODO put header data into NWBFile under Neuraalynx device
 
     num_electrodes = 2
-    # num_electrodes = len(electrode_table_region)
     data = raw_generator(raw_nlx_path, num_electrodes)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
@@ -50,14 +58,15 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     nwbfile.add_acquisition(ephys_ts)
 
 
-def raw_generator(raw_nlx_path, num_electrodes):
+def raw_generator(raw_nlx_path):
     """Generator that returns an array of all of the raw data for a single channel (from a single CSC .ncs file)
+    :param raw_nlx_path: Path object for directory of raw NLX CSC files
     """
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
     data_paths = [raw_nlx_path / x for x in data_files]
 
     # generate raw data chunks for data chunk iterator
-    for i in trange(num_electrodes, desc='Writing raw data'):
+    for i in trange(len(data_paths), desc='Writing raw data'):
         _, raw_ts, raw_data = read_csc_file(data_paths[i])
         if i == 0:
             raw_ts_ch0 = raw_ts
@@ -69,8 +78,7 @@ def raw_generator(raw_nlx_path, num_electrodes):
 
 
 def parse_header(header):  # noqa: C901
-    """
-    Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
+    """Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
     :param header: 16384 bytes of header contents
     :return: dictionary of header metadata
     """
@@ -136,6 +144,8 @@ def parse_header(header):  # noqa: C901
 
 def check_num_records(csc_file_path):
     """Check that the size of the file is consistent with an integer number of records and return the number of records.
+    :param csc_file_path: Path object for a single CSC .ncs file
+    :return: the number of records in the file
     """
     file_size = csc_file_path.stat().st_size
     num_records = (file_size - _CSC_HEADER_SIZE) / _CSC_RECORD_SIZE
@@ -147,6 +157,8 @@ def check_num_records(csc_file_path):
 
 def read_csc_file(csc_file_path):
     """Read and parse a CSC .ncs file.
+    :param csc_file_path: Path object for a single CSC .ncs file
+    :return: tuple of header data, timestamps, and data values from the file
     """
     num_records = check_num_records(csc_file_path)
 
