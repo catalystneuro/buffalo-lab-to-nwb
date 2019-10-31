@@ -31,6 +31,16 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
     metafile : str or path
         Yaml metadata file.
+    skip_raw : bool
+        Whether to skip adding raw data to the file.
+    skip_processed : bool
+        Whether to skip adding processed data to the file.
+    no_lfp_iterator : bool
+        Whether to not use a data chunk iterator over channels for the LFP data.
+    copy_raw : bool
+        Whether to copy the raw data instead of create a link between the processed data NWB file and the raw data NWB
+        file.
+
     """
 
     # Source files
@@ -265,7 +275,7 @@ if __name__ == '__main__':
         action="store_true",
         default=False,
         help=("Whether to copy the raw data instead of create a link between the processed data NWB file and the "
-              "raw data NWB file instead of "),
+              "raw data NWB file"),
     )
 
     if not sys.argv[1:]:
