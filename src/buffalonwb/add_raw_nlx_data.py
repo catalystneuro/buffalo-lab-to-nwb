@@ -33,11 +33,15 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     assert(len(data_paths) == num_electrodes)
 
     # read first file fully to initialize a few variables
+
+    # NOTE: use starting time of 0. the neuralynx starting time is arbitrary.
+    # TODO: store neuralynx starting time in case it is useful for alignment
     raw_header, raw_ts, _ = read_csc_file(data_paths[0])
-    starting_time = float(raw_ts[0])
+    # starting_time = float(raw_ts[0])
+    starting_time = 0.
     rate = float(raw_header['SamplingFrequency'])
     conversion_factor = raw_header['ADBitVolts']
-    # TODO put header data into NWBFile under Neuraalynx device
+    # TODO put header data into NWBFile under Neuralynx device
 
     num_electrodes = 2
     data = raw_generator(raw_nlx_path)
