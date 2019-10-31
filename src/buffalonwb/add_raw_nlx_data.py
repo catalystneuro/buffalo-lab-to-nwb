@@ -141,7 +141,7 @@ def parse_header(header):  # noqa: C901
                      'DspFilterDelay_µs'}
 
     if set(header_data.keys()) != expected_keys:
-        raise UnexpectedInputException()
+        raise UnexpectedInputException('Expected keys are missing from header.')
 
     return header_data
 
@@ -188,15 +188,17 @@ def read_csc_file(csc_file_path):
             if record_ind == 0:
                 channel_number = channel_number_r
                 Fs = Fs_r
-                if num_valid_samples_r != _CSC_SAMPLES_PER_RECORD:
-                    raise UnexpectedInputException()
             else:  # verify matching record
                 # first timestamp of the record might not be what we expect it to be -- see warning later
-                if not (channel_number == channel_number_r and Fs == Fs_r):
-                    raise InconsistentInputException()
-                # OK if last record has fewer than 512 valid samples -- handle in delete below
-                if record_ind < num_records - 1 and num_valid_samples_r != _CSC_SAMPLES_PER_RECORD:
-                    raise InconsistentInputException()
+                if channel_number != channel_number_r:
+                    raise InconsistentInputException('Channel number is not consistent across records.')
+                if Fs != Fs_r:
+                    raise InconsistentInputException('Sampling rate is not consistent across records.')
+
+            # OK if last record has fewer than 512 valid samples -- handle in delete below
+            if record_ind < num_records - 1 and num_valid_samples_r != _CSC_SAMPLES_PER_RECORD:
+                raise UnexpectedInputException('Record %d has %d valid samples instead of %d. These data need '
+                                               'to be handled specially.')
 
             data_ind_start = record_ind * _CSC_SAMPLES_PER_RECORD
             data_ind_end = data_ind_start + _CSC_SAMPLES_PER_RECORD
