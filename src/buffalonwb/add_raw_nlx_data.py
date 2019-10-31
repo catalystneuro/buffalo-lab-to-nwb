@@ -43,15 +43,15 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
 
     # NOTE: use starting time of 0. the neuralynx starting time is arbitrary.
     # TODO: store neuralynx starting time in case it is useful for alignment
-    raw_header, raw_ts, _ = read_csc_file(data_paths[0])
-    # starting_time = float(raw_ts[0])
+    raw_header, raw_ts, raw_data = read_csc_file(data_paths[0])
     starting_time = 0.
     rate = float(raw_header['SamplingFrequency'])
     conversion_factor = raw_header['ADBitVolts']
     # TODO put header data into NWBFile under Neuralynx device
 
-    num_electrodes = 2
-    data = raw_generator(raw_nlx_path)
+    data = raw_generator(raw_nlx_path,
+                         first_raw_ts=raw_ts,
+                         first_raw_data=raw_data)
     ephys_data = DataChunkIterator(data=data,
                                    iter_axis=1,
                                    maxshape=(len(raw_ts), num_electrodes),
@@ -69,13 +69,17 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     nwbfile.add_acquisition(ephys_ts)
 
 
-def raw_generator(raw_nlx_path):
+def raw_generator(raw_nlx_path, first_raw_ts=None, first_raw_data=None):
     """Generator that returns an array of all of the raw data for a single channel (from a single CSC .ncs file)
 
     Parameters
     ----------
     raw_nlx_path : Path
         Path for directory of raw NLX CSC files.
+    first_raw_ts : np.array
+        Array of timestamps for the first channel.
+    first_raw_data : np.array
+        Array of raw data values for the first channel.
 
     Yields
     ------
@@ -93,9 +97,14 @@ def raw_generator(raw_nlx_path):
 
     # generate raw data chunks for data chunk iterator
     for i in trange(len(data_paths), desc='Writing raw data'):
-        _, raw_ts, raw_data = read_csc_file(data_paths[i])
+        if i == 0 and first_raw_ts is not None and first_raw_data is not None:
+            raw_ts = first_raw_ts
+            raw_data = first_raw_data
+        else:
+            _, raw_ts, raw_data = read_csc_file(data_paths[i])
+
         if i == 0:
-            raw_ts_ch0 = raw_ts
+            raw_ts_ch0 = raw_ts  # save timestamps to check with timestamps for other channels
         else:
             if not np.all(raw_ts_ch0 == raw_ts):
                 raise InconsistentInputException('Timestamps are not aligned between %s and %s'
