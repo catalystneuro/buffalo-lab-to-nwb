@@ -19,10 +19,17 @@ _CSC_RECORD_SIZE = _CSC_RECORD_HEADER_SIZE + _CSC_SAMPLES_PER_RECORD * 2
 
 def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
     """Add raw acquisition data from Neuralynx CSC .ncs files to an NWB file using a data chunk iterator
-    :param nwbfile: The NWBFile object
-    :param raw_nlx_path: Path object for directory of raw NLX CSC files
-    :param electrode_table_region: The set of electrodes corresponding to these acquisition time series data. There
-    should be one .ncs data file for every electrode in the electrode_table_region.
+
+    Parameters
+    ----------
+    nwbfile : NWBFile
+        The NWBFile object to add raw data to.
+    raw_nlx_path : Path
+        Path of directory of raw NLX CSC files.
+    electrode_table_region : DynamicTableRegion
+        The set of electrodes corresponding to these acquisition time series data. There should be one .ncs data file
+        for every electrode in the electrode_table_region.
+
     """
     print('Adding raw NLX data using data chunk iterator')
     num_electrodes = len(electrode_table_region)
@@ -64,7 +71,22 @@ def add_raw_nlx_data(nwbfile, raw_nlx_path, electrode_table_region):
 
 def raw_generator(raw_nlx_path):
     """Generator that returns an array of all of the raw data for a single channel (from a single CSC .ncs file)
-    :param raw_nlx_path: Path object for directory of raw NLX CSC files
+
+    Parameters
+    ----------
+    raw_nlx_path : Path
+        Path for directory of raw NLX CSC files.
+
+    Yields
+    ------
+    np.array
+        np.int16 array of all data for a single channel.
+
+    Raises
+    ------
+    InconsistentInputException
+        if the timestamps differ between channels.
+
     """
     data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
     data_paths = [raw_nlx_path / x for x in data_files]
@@ -83,8 +105,22 @@ def raw_generator(raw_nlx_path):
 
 def parse_header(header):  # noqa: C901
     """Parse the 16 kB header of a Neuralynx CSC (.ncs) file into a dictionary.
-    :param header: 16384 bytes of header contents
-    :return: dictionary of header metadata
+
+    Parameters
+    ----------
+    raw_nlx_path : Path
+        Path for directory of raw NLX CSC files.
+
+    Returns
+    -------
+    dict
+        The header metadata.
+
+    Raises
+    ------
+    UnexpectedInputException
+        if a header line cannot be parsed because the line does not conform to an expected format.
+
     """
     header_data = dict()
     for line in header.splitlines():
@@ -110,16 +146,16 @@ def parse_header(header):  # noqa: C901
                 header_data['ApplicationVersion'] = line_parts[2]
             elif key == 'ReferenceChannel':
                 if line_parts[1] != 'Source' or line_parts[3] != 'Reference':
-                    raise UnexpectedInputException()
+                    raise UnexpectedInputException('Line cannot be parsed: %s' % line)
                 header_data['ReferenceChannelSource'] = line_parts[2]
                 header_data['ReferenceChannelReference'] = line_parts[4]
             elif key == 'AcquisitionSystem':
                 if len(line_parts) != 3:
-                    raise UnexpectedInputException()
+                    raise UnexpectedInputException('Line cannot be parsed: %s' % line)
                 header_data[key] = line_parts[1] + ' ' + line_parts[2]
             else:
                 if len(line_parts) > 2:
-                    raise UnexpectedInputException()
+                    raise UnexpectedInputException('Line cannot be parsed: %s' % line)
                 if key in {'InputInverted', 'DSPLowCutFilterEnabled', 'DSPHighCutFilterEnabled'}:
                     header_data[key] = bool(line_parts[1])
                 elif key in {'RecordSize', 'SamplingFrequency', 'ADMaxValue', 'NumADChannels', 'ADChannel',
@@ -148,8 +184,23 @@ def parse_header(header):  # noqa: C901
 
 def check_num_records(csc_file_path):
     """Check that the size of the file is consistent with an integer number of records and return the number of records.
-    :param csc_file_path: Path object for a single CSC .ncs file
-    :return: the number of records in the file
+
+    Parameters
+    ----------
+    csc_file_path : Path
+        Path for for a single CSC .ncs file.
+
+    Returns
+    -------
+    int
+        The number of records in the file.
+
+    Raises
+    ------
+    UnexpectedInputException
+        If the file size is not compatible with an integer number of records. This should never happen if the file was
+        written correctly.
+
     """
     file_size = csc_file_path.stat().st_size
     num_records = (file_size - _CSC_HEADER_SIZE) / _CSC_RECORD_SIZE
@@ -161,8 +212,24 @@ def check_num_records(csc_file_path):
 
 def read_csc_file(csc_file_path):
     """Read and parse a CSC .ncs file.
-    :param csc_file_path: Path object for a single CSC .ncs file
-    :return: tuple of header data, timestamps, and data values from the file
+
+    Parameters
+    ----------
+    csc_file_path : Path
+        Path for for a single CSC .ncs file.
+
+    Returns
+    -------
+    tuple
+        Header data, timestamps, and data values from the file
+
+    Raises
+    ------
+    InconsistentInputException
+        if channel number or sampling rate is not consistent across records.
+    UnexpectedInputException
+        if a record has fewer than _CSC_SAMPLES_PER_RECORD per record.
+
     """
     num_records = check_num_records(csc_file_path)
 
@@ -207,11 +274,9 @@ def read_csc_file(csc_file_path):
                                                         1e6 / Fs)
             data[data_ind_start:data_ind_end] = np.fromfile(data_file, dtype='<h', count=_CSC_SAMPLES_PER_RECORD)
 
-        # is there still data in the file?
+        # there should not be any leftover data in the file
         leftover_data = data_file.read()
-        if leftover_data:
-            raise InconsistentInputException()
-        del leftover_data
+        assert(not leftover_data)
 
         # delete invalid entries if last num_valid_samples_r != samples_per_record
         ts = np.delete(ts, np.s_[-(_CSC_SAMPLES_PER_RECORD - num_valid_samples_r):])
