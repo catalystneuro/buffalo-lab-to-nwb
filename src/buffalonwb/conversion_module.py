@@ -6,7 +6,6 @@ from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
 from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
 
-from datetime import datetime
 from pathlib import Path
 import ruamel.yaml as yaml
 import pytz
@@ -35,32 +34,9 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     """
 
     # Source files
-    raw_nlx_path = None
-    lfp_mat_path = None
-    behavior_file = None
-    sorted_spikes_nex5_file = None
-    for k, v in source_paths.items():
-        if source_paths[k]['path'] != '':
-            if k == 'raw Nlx':
-                raw_nlx_path = Path(source_paths[k]['path'])
-                if not raw_nlx_path.is_dir():
-                    raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
-            if k == 'processed Nlx':
-                lfp_mat_path = Path(source_paths[k]['path'])
-                if not lfp_mat_path.is_dir():
-                    raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
-            if k == 'processed behavior':
-                behavior_file = Path(source_paths[k]['path'])
-                if not behavior_file.is_file():
-                    raise ValueError('Behavior file must be a file: %s' % behavior_file)
-                if behavior_file.suffix != ".mat":
-                    raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
-            if k == 'sorted spikes':
-                sorted_spikes_nex5_file = Path(source_paths[k]['path'])
-                if not sorted_spikes_nex5_file.is_file():
-                    raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
-                if sorted_spikes_nex5_file.suffix != ".nex5":
-                    raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
+    raw_nlx_path, lfp_mat_path, behavior_file, sorted_spikes_nex5_file = check_source_paths(source_paths)
+    if raw_nlx_path is None:
+        raise ValueError('Raw NLX file is required for getting the nub: %s' % sorted_spikes_nex5_file)
 
     # Output files
     nwbpath = Path(f_nwb).parent
@@ -92,7 +68,7 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     )
 
     if skip_raw:
-        print("skipping raw data...")
+        print("Skipping raw data...")
     if not skip_raw:
         # Add raw data
         add_raw_nlx_data(
@@ -108,17 +84,17 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         print(nwbfile)
 
     if skip_processed:
-        print("skipping processed data...")
+        print("Skipping processed data...")
     if not skip_processed:
         if not copy_raw or skip_raw:
             nwbfile_proc = nwbfile
         else:
             # Copy from raw data NWB file to maintain file linkage
-            print('copying NWB file ' + out_file_raw)
+            print('Copying NWB file ' + out_file_raw)
             raw_io = NWBHDF5IO(out_file_raw, mode='r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
-            electrode_table_region = nwbfile_proc.acquisition['raw_ephys'].electrodes
+            electrode_table_region = nwbfile_proc.acquisition.electrodes
 
         # Add processed behavior data
         if behavior_file is not None:
@@ -156,6 +132,36 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             raw_io.close()
 
         print(nwbfile_proc)
+
+
+def check_source_paths(source_paths):
+    raw_nlx_path = None
+    lfp_mat_path = None
+    behavior_file = None
+    sorted_spikes_nex5_file = None
+    for k, v in source_paths.items():
+        if source_paths[k]['path'] != '':
+            if k == 'raw Nlx':
+                raw_nlx_path = Path(source_paths[k]['path'])
+                if not raw_nlx_path.is_dir():
+                    raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
+            if k == 'processed Nlx':
+                lfp_mat_path = Path(source_paths[k]['path'])
+                if not lfp_mat_path.is_dir():
+                    raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
+            if k == 'processed behavior':
+                behavior_file = Path(source_paths[k]['path'])
+                if not behavior_file.is_file():
+                    raise ValueError('Behavior file must be a file: %s' % behavior_file)
+                if behavior_file.suffix != ".mat":
+                    raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
+            if k == 'sorted spikes':
+                sorted_spikes_nex5_file = Path(source_paths[k]['path'])
+                if not sorted_spikes_nex5_file.is_file():
+                    raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
+                if sorted_spikes_nex5_file.suffix != ".nex5":
+                    raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
+    return raw_nlx_path, lfp_mat_path, behavior_file, sorted_spikes_nex5_file
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
