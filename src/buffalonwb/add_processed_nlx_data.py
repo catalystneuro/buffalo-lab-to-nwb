@@ -1,9 +1,8 @@
 # add processed nlx data
 import h5py
-from pynwb.ecephys import ElectricalSeries
+from pynwb.ecephys import ElectricalSeries, LFP
 import numpy as np
 import os
-import pynwb
 from hdmf.data_utils import DataChunkIterator
 from buffalonwb.exceptions import UnexpectedInputException
 from tqdm import trange
@@ -13,7 +12,7 @@ import natsort
 def add_lfp(nwbfile, lfp_path, electrodes, iterator_flag, all_electrode_labels):
     num_electrodes = len(all_electrode_labels)
     if iterator_flag:
-        print("LFP adding via data chunk iterator")
+        print('Adding LFP using data chunk iterator')
         lfp, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=1,
                                                      lfp_path=lfp_path,
                                                      all_electrode_labels=all_electrode_labels)
@@ -21,6 +20,7 @@ def add_lfp(nwbfile, lfp_path, electrodes, iterator_flag, all_electrode_labels):
                                 all_electrode_labels=all_electrode_labels)
         lfp_data = DataChunkIterator(data=lfp_gen, iter_axis=1)
     else:
+        print('Adding LFP')
         lfp_data, lfp_timestamps, lfp_rate = get_lfp_data(num_electrodes=num_electrodes,
                                                           lfp_path=lfp_path,
                                                           all_electrode_labels=all_electrode_labels)
@@ -44,10 +44,12 @@ def add_lfp(nwbfile, lfp_path, electrodes, iterator_flag, all_electrode_labels):
 
     proc_module = nwbfile.create_processing_module(
         name='ecephys',
-        description='module for processed data'
+        description='module for processed extracellular electrophysiology data'
     )
+
     # Store LFP data in ecephys
-    proc_module.add(pynwb.ecephys.LFP(electrical_series=lfp_es, name='LFP'))
+    lfp = LFP(name='LFP', electrical_series=lfp_es)
+    proc_module.add(lfp)
 
 
 # FUNCTIONS FOR PROCESSED DATA

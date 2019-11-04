@@ -5,7 +5,7 @@ from pynwb.behavior import Position, EyeTracking
 
 
 def add_behavior(nwbfile, behavior_file, metadata_behavior):
-    print("adding behavior")
+    print("adding behavior...")
     # process raw behavior
     behavior_data = loadmat(behavior_file)
     behavior_module = nwbfile.create_processing_module(

@@ -1,24 +1,22 @@
 from pynwb import NWBHDF5IO, NWBFile
 
+from buffalonwb import __version__
 from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
 from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
 
-from datetime import datetime
 from pathlib import Path
-import yaml
+import ruamel.yaml as yaml
 import pytz
 import math
-import os
-import glob
+import argparse
 from natsort import natsorted
 
 
-def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_processed=False,
-                        lfp_iterator_flag=True, no_copy=True):
+def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
     """
-    Main function for conversion from Buffalo's lab data to NWB.
+    Main function for conversion of Buffalo lab data from Neuralynx/Matlab/Neuroexplorer formats to NWB.
 
     Parameters
     ----------
@@ -33,23 +31,22 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
     metafile : str or path
         Yaml metadata file.
+    skip_raw : bool
+        Whether to skip adding raw data to the file.
+    skip_processed : bool
+        Whether to skip adding processed data to the file.
+    no_lfp_iterator : bool
+        Whether to not use a data chunk iterator over channels for the LFP data.
+    copy_raw : bool
+        Whether to copy the raw data instead of create a link between the processed data NWB file and the raw data NWB
+        file.
+
     """
 
     # Source files
-    raw_nlx_path = None
-    lfp_mat_path = None
-    behavior_file = None
-    sorted_spikes_nex5_file = None
-    for k, v in source_paths.items():
-        if source_paths[k]['path'] != '':
-            if k == 'raw Nlx':
-                raw_nlx_path = Path(source_paths[k]['path'])
-            if k == 'processed Nlx':
-                lfp_mat_path = Path(source_paths[k]['path'])
-            if k == 'processed behavior':
-                behavior_file = Path(source_paths[k]['path'])
-            if k == 'sorted spikes':
-                sorted_spikes_nex5_file = Path(source_paths[k]['path'])
+    raw_nlx_path, lfp_mat_path, behavior_file, sorted_spikes_nex5_file = check_source_paths(source_paths)
+    if raw_nlx_path is None:
+        raise ValueError('Raw NLX file is required for getting the nub: %s' % sorted_spikes_nex5_file)
 
     # Output files
     nwbpath = Path(f_nwb).parent
@@ -60,19 +57,19 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
     with open(metafile) as f:
         metadata = yaml.safe_load(f)
 
-    # Number of electrodes
-    electrode_labels = natsorted([os.path.split(x)[1][:-4]
-                                  for x in glob.glob(os.path.join(raw_nlx_path, 'CSC*.ncs'))
-                                  if '_' not in os.path.split(x)[1]])
+    # Get electrode labels from raw nlx directory file names
+    electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
 
-    # Check if timestamps_reference_time was given in metadata
-    if "timestamps_reference_time" not in metadata:
-        timezone = pytz.timezone('US/Pacific')
-        metadata["timestamps_reference_time"] = timezone.localize(datetime.now())
+    # localize session start time to Pacific time for Buffalo Lab
+    # TODO this time has only seconds resolution, not ms or us. where is this information?
+    metadata['NWBFile']['session_start_time'] = pytz.timezone('US/Pacific').localize(
+        metadata['NWBFile']['session_start_time']
+    )
 
-    # MAKE NWB FILE
+    # Build NWB file
     nwbfile = NWBFile(**metadata['NWBFile'])
 
+    # Add device and electrodes based on given metadata and electrode labels
     electrode_table_region = add_electrodes(
         nwbfile=nwbfile,
         metadata_ecephys=metadata['Ecephys'],
@@ -81,36 +78,35 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
     )
 
     if skip_raw:
-        print("skipping raw data...")
+        print("Skipping raw data...")
     if not skip_raw:
-        # Raw data
+        # Add raw data
         add_raw_nlx_data(
             nwbfile=nwbfile,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
-            num_electrodes=len(electrode_labels)
         )
 
-        # Write raw
+        # Write raw data to NWB file
+        print('Writing to file: ' + out_file_raw)
         with NWBHDF5IO(out_file_raw, mode='w') as io:
-            print('Writing to file: ' + out_file_raw)
             io.write(nwbfile)
-            print(nwbfile)
+        print(nwbfile)
 
     if skip_processed:
-        print("skipping processed data...")
+        print("Skipping processed data...")
     if not skip_processed:
-        if no_copy or skip_raw:
+        if not copy_raw or skip_raw:
             nwbfile_proc = nwbfile
         else:
-            # copy from raw to maintain file linkage
+            # Copy from raw data NWB file to maintain file linkage
+            print('Copying NWB file ' + out_file_raw)
             raw_io = NWBHDF5IO(out_file_raw, mode='r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
-            electrode_table_region = nwbfile_proc.acquisition['raw_ephys'].electrodes
-            print('Copying NWB file ' + out_file_raw)
+            electrode_table_region = nwbfile_proc.acquisition.electrodes
 
-        # BEHAVIOR (PROCESSED)
+        # Add processed behavior data
         if behavior_file is not None:
             add_behavior(
                 nwbfile=nwbfile_proc,
@@ -118,45 +114,80 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw=True, skip_proce
                 metadata_behavior=metadata['Behavior']
             )
 
-        # PROCESSED COMPONENTS
-        # UNITS
+        # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(
                 nwbfile=nwbfile_proc,
                 nex_file_name=sorted_spikes_nex5_file
             )
 
-        # LFP
+        # Add LFP
         if lfp_mat_path is not None:
             add_lfp(
                 nwbfile=nwbfile_proc,
                 lfp_path=lfp_mat_path,
                 electrodes=electrode_table_region,
-                iterator_flag=lfp_iterator_flag,
+                iterator_flag=not no_lfp_iterator,
                 all_electrode_labels=electrode_labels
             )
 
-        # WRITE PROCESSED
-        if no_copy or skip_raw:
+        # Write processed data to NWB file
+        print('Writing to file: ' + out_file_processed)
+        if not copy_raw or skip_raw:
             with NWBHDF5IO(out_file_processed, mode='w') as io:
-                print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile_proc)
-                print(nwbfile)
         else:
             with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-                print('Writing to file: ' + out_file_processed)
                 io.write(nwbfile_proc)
-                print(nwbfile)
-        if 'raw_io' in locals():
             raw_io.close()
+
+        print(nwbfile_proc)
+
+
+def check_source_paths(source_paths):
+    key = 'raw Nlx'
+    raw_nlx_path = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        raw_nlx_path = Path(source_paths[key]['path'])
+        if not raw_nlx_path.is_dir():
+            raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
+
+    key = 'processed Nlx'
+    lfp_mat_path = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        lfp_mat_path = Path(source_paths[key]['path'])
+        if not lfp_mat_path.is_dir():
+            raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
+
+    key = 'processed behavior'
+    behavior_file = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        behavior_file = Path(source_paths[key]['path'])
+        if not behavior_file.is_file():
+            raise ValueError('Behavior file must be a file: %s' % behavior_file)
+        if behavior_file.suffix != ".mat":
+            raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
+
+    key = 'sorted spikes'
+    sorted_spikes_nex5_file = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        sorted_spikes_nex5_file = Path(source_paths[key]['path'])
+        if not sorted_spikes_nex5_file.is_file():
+            raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
+        if sorted_spikes_nex5_file.suffix != ".nex5":
+            raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
+
+    return raw_nlx_path, lfp_mat_path, behavior_file, sorted_spikes_nex5_file
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
     # Add device
     device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
 
-    # Add electrodes
+    # Add electrode group -- assume only one
     metadata_eg = metadata_ecephys['ElectrodeGroup']
+    if metadata_eg['device'] != device.name:
+        raise Exception('Name of device in ElectrodeGroup must match the single Device name in the metadata YAML file')
     electrode_group = nwbfile.create_electrode_group(
         name=metadata_eg['name'],
         description=metadata_eg['description'],
@@ -173,6 +204,7 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=N
             kwargs.update(label=electrode_labels[i])
 
         nwbfile.add_electrode(
+            id=i + 1,
             x=math.nan,
             y=math.nan,
             z=math.nan,
@@ -180,11 +212,10 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=N
             location=electrode_group.location,
             filtering='none',
             group=electrode_group,
-            id=i + 1,
             **kwargs
         )
 
-    # all electrodes in table region
+    # Create an electrode table region encompassing all electrodes
     electrode_table_region = nwbfile.create_electrode_table_region(
         region=list(range(0, num_electrodes)),
         description='all the electrodes'
@@ -196,31 +227,79 @@ def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=N
 # If called from terminal
 if __name__ == '__main__':
     """
-    Usage: python conversion_module.py [raw_nlx_dir] [lfp_mat_dir]
-    [sorted_spikes_nex5_file] [behavior_file] [output_file] [metadata_file]
+    Usage: python conversion_module.py [raw_nlx_dir] [processed_mat_dir]
+    [sorted_spikes_nex5_file] [behavior_file] [metadata_file] [output_file]
     [-skipraw] [-skipprocessed] [-lfpiterator] [-dontcopy]
     """
     import sys
 
+    parser = argparse.ArgumentParser("A package for converting Buffalo Lab data to the NWB standard.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
+        help="Show the version, and exit.",
+    )
+    parser.add_argument(
+        "raw_nlx_dir", help="The path to the directory holding raw Neuralynx CSC files."
+    )
+    parser.add_argument(
+        "processed_mat_dir", help="The path to the directory holding processed .mat files."
+    )
+    parser.add_argument(
+        "sorted_spikes_nex5_file", help="The path to the sorted spikes NEX5 file."
+    )
+    parser.add_argument(
+        "behavior_mat_file", help="The path to the processed behavior MAT file."
+    )
+    parser.add_argument(
+        "metadata_yaml_file", help="The path to the metadata YAML file."
+    )
+    parser.add_argument(
+        "output_file", help="The stem of the output file to be created."
+    )
+    parser.add_argument(
+        "--skipraw",
+        action="store_true",
+        default=False,
+        help="Whether to skip adding the raw data to the NWB file",
+    )
+    parser.add_argument(
+        "--skipprocessed",
+        action="store_true",
+        default=False,
+        help="Whether to skip adding the processed data to the NWB file",
+    )
+    parser.add_argument(
+        "--nolfpiterator",
+        action="store_true",
+        default=False,
+        help="Whether to use the LFP channel iterator",
+    )
+    parser.add_argument(
+        "--copyraw",
+        action="store_true",
+        default=False,
+        help=("Whether to copy the raw data instead of create a link between the processed data NWB file and the "
+              "raw data NWB file"),
+    )
+
+    if not sys.argv[1:]:
+        args = parser.parse_args(["--help"])
+    else:
+        args = parser.parse_args()
+
     source_paths = {
-        'raw Nlx': {'type': 'dir', 'path': sys.argv[1]},
-        'processed Nlx': {'type': 'dir', 'path': sys.argv[2]},
-        'sorted spikes': {'type': 'file', 'path': sys.argv[3]},
-        'processed behavior': {'type': 'file', 'path': sys.argv[4]}
+        'raw Nlx': {'type': 'dir', 'path': args.raw_nlx_dir},
+        'processed Nlx': {'type': 'dir', 'path': args.processed_mat_dir},
+        'sorted spikes': {'type': 'file', 'path': args.sorted_spikes_nex5_file},
+        'processed behavior': {'type': 'file', 'path': args.behavior_mat_file}
     }
 
-    f_nwb = sys.argv[5]
-    metafile = sys.argv[6]
-
-    skip_raw = any([i == '-skipraw' for i in sys.argv])
-    skip_processed = any([i == '-skipprocessed' for i in sys.argv])
-    lfp_iterator_flag = any([i == '-lfpiterator' for i in sys.argv])
-    no_copy = any([i == '-dontcopy' for i in sys.argv])
-
     conversion_function(source_paths=source_paths,
-                        f_nwb=f_nwb,
-                        metafile=metafile,
-                        skip_raw=skip_raw,
-                        skip_processed=skip_processed,
-                        lfp_iterator_flag=lfp_iterator_flag,
-                        no_copy=no_copy)
+                        f_nwb=args.output_file,
+                        metafile=args.metadata_yaml_file,
+                        skip_raw=args.skipraw,
+                        skip_processed=args.skipprocessed,
+                        no_lfp_iterator=args.nolfpiterator,
+                        copy_raw=args.copyraw)
