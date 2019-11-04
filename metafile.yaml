@@ -17,7 +17,7 @@ Ecephys:
   Device:
     name: ADDME
   ElectrodeGroup:
-    description: ''
+    description: ADDME
     device: ADDME
     location: Hippocampus
     name: ElectrodeGroup
