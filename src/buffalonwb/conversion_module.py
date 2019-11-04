@@ -145,32 +145,38 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
 
 
 def check_source_paths(source_paths):
+    key = 'raw Nlx'
     raw_nlx_path = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        raw_nlx_path = Path(source_paths[key]['path'])
+        if not raw_nlx_path.is_dir():
+            raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
+
+    key = 'processed Nlx'
     lfp_mat_path = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        lfp_mat_path = Path(source_paths[key]['path'])
+        if not lfp_mat_path.is_dir():
+            raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
+
+    key = 'processed behavior'
     behavior_file = None
+    if key in source_paths and source_paths[key]['path'] != '':
+        behavior_file = Path(source_paths[key]['path'])
+        if not behavior_file.is_file():
+            raise ValueError('Behavior file must be a file: %s' % behavior_file)
+        if behavior_file.suffix != ".mat":
+            raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
+
+    key = 'sorted spikes'
     sorted_spikes_nex5_file = None
-    for k, v in source_paths.items():
-        if source_paths[k]['path'] != '':
-            if k == 'raw Nlx':
-                raw_nlx_path = Path(source_paths[k]['path'])
-                if not raw_nlx_path.is_dir():
-                    raise ValueError('Raw NLX path should be a directory: %s' % raw_nlx_path)
-            if k == 'processed Nlx':
-                lfp_mat_path = Path(source_paths[k]['path'])
-                if not lfp_mat_path.is_dir():
-                    raise ValueError('Processed NLX path should be a directory: %s' % lfp_mat_path)
-            if k == 'processed behavior':
-                behavior_file = Path(source_paths[k]['path'])
-                if not behavior_file.is_file():
-                    raise ValueError('Behavior file must be a file: %s' % behavior_file)
-                if behavior_file.suffix != ".mat":
-                    raise ValueError('Behavior file name must end with .mat: %s' % behavior_file)
-            if k == 'sorted spikes':
-                sorted_spikes_nex5_file = Path(source_paths[k]['path'])
-                if not sorted_spikes_nex5_file.is_file():
-                    raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
-                if sorted_spikes_nex5_file.suffix != ".nex5":
-                    raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
+    if key in source_paths and source_paths[key]['path'] != '':
+        sorted_spikes_nex5_file = Path(source_paths[key]['path'])
+        if not sorted_spikes_nex5_file.is_file():
+            raise ValueError('Sorted spikes file must be a file: %s' % sorted_spikes_nex5_file)
+        if sorted_spikes_nex5_file.suffix != ".nex5":
+            raise ValueError('Sorted spikes file name must end with .nex5: %s' % sorted_spikes_nex5_file)
+
     return raw_nlx_path, lfp_mat_path, behavior_file, sorted_spikes_nex5_file
 
 
