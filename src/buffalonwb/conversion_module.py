@@ -14,7 +14,7 @@ import argparse
 from natsort import natsorted
 
 
-def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
+def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
     """
     Main function for conversion of Buffalo lab data from Neuralynx/Matlab/Neuroexplorer formats to NWB.
 
@@ -29,8 +29,8 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     f_nwb : str
         Stem to output file. Two files might be produced using this stem:
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
-    metafile : str or path
-        Yaml metadata file.
+    metadata : dict
+        Metadata dictionary.
     skip_raw : bool
         Whether to skip adding raw data to the file.
     skip_processed : bool
@@ -52,10 +52,6 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     nwbpath = Path(f_nwb).parent
     out_file_raw = str(nwbpath.joinpath(Path(f_nwb).stem + '_raw.nwb'))
     out_file_processed = str(nwbpath.joinpath(Path(f_nwb).stem + '_processed.nwb'))
-
-    # Load metadata from YAML file
-    with open(metafile) as f:
-        metadata = yaml.safe_load(f)
 
     # Get electrode labels from raw nlx directory file names
     electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
@@ -107,12 +103,12 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
             electrode_table_region = nwbfile_proc.acquisition.electrodes
 
         # Add processed behavior data
-        if behavior_file is not None:
-            add_behavior(
-                nwbfile=nwbfile_proc,
-                behavior_file=str(behavior_file),
-                metadata_behavior=metadata['Behavior']
-            )
+        # if behavior_file is not None:
+        #     add_behavior(
+        #         nwbfile=nwbfile_proc,
+        #         behavior_file=str(behavior_file),
+        #         metadata_behavior=metadata['Behavior']
+        #     )
 
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
@@ -181,19 +177,19 @@ def check_source_paths(source_paths):
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
-    # Add device
-    device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
-
-    # Add electrode group -- assume only one
+        # Add electrode groups
     metadata_eg = metadata_ecephys['ElectrodeGroup']
-    if metadata_eg['device'] != device.name:
-        raise Exception('Name of device in ElectrodeGroup must match the single Device name in the metadata YAML file')
-    electrode_group = nwbfile.create_electrode_group(
-        name=metadata_eg['name'],
-        description=metadata_eg['description'],
-        location=metadata_eg['location'],
-        device=device
-    )
+    for eg in metadata_eg:
+        if eg['device'] not in nwbfile.devices:
+            device = nwbfile.create_device(name=eg['device'])
+        else:
+            device = nwbfile.devices[eg['device']]
+        electrode_group = nwbfile.create_electrode_group(
+            name=eg['name'],
+            description=eg['description'],
+            location=eg['location'],
+            device=device
+        )
 
     if electrode_labels:
         nwbfile.add_electrode_column('label', 'labels of electrodes')

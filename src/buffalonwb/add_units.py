@@ -62,7 +62,7 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
     #             then the timestamp of the first point of waveform is t - PrethresholdTimeInSeconds
 
     # add these columns to unit table
-    nwbfile.add_unit_column('name', 'name')
+    nwbfile.add_unit_column('unit_name', 'name of this unit')
     nwbfile.add_unit_column('pre_threshold_samples', 'number of samples before threshold')
     nwbfile.add_unit_column('num_samples', 'number of samples for each spike waveform')
     nwbfile.add_unit_column('num_spikes', 'number of spikes')
@@ -80,7 +80,7 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
         if include_waveforms:
             kwargs.update(waveforms=var['WaveformValues'])
         nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
-                         name=var_header['Name'],
+                         unit_name=var_header['Name'],
                          spike_times=var['Timestamps'],
                          pre_threshold_samples=var_header['PreThrTime'],
                          num_samples=var_header['NPointsWave'],

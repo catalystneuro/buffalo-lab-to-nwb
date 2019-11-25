@@ -14,7 +14,8 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     )
 
     # Player Position
-    pos = Position(name='Position')
+    meta_pos = metadata_behavior['Position']
+    pos = Position(name=meta_pos['name'])
     for epoch in range(1, 7):
         if epoch == 3:
             epoch_data = behavior_data["behavior"][epoch - 1]
@@ -26,11 +27,10 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
 
     # Metadata for SpatialSeries stored in Position
-    meta_pos = metadata_behavior['Position']
     pos.create_spatial_series(
-        name=meta_pos['spatial_series']['name'],
+        name=meta_pos['spatial_series'][0]['name'],
         data=all_pos,
-        reference_frame=meta_pos['spatial_series']['reference_frame'],
+        reference_frame=meta_pos['spatial_series'][0]['reference_frame'],
         timestamps=all_tme
     )
     behavior_module.add(pos)
@@ -40,9 +40,9 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     # metadata for SpatialSeries stored in EyeTracking
     meta_et = metadata_behavior['EyeTracking']
     nlxeye.create_spatial_series(
-        name=meta_et['spatial_series']['name'],
+        name=meta_et['spatial_series'][0]['name'],
         data=np.array(behavior_data["nlxeye"]).T,
-        reference_frame=meta_et['spatial_series']['reference_frame'],
+        reference_frame=meta_et['spatial_series'][0]['reference_frame'],
         timestamps=behavior_data["nlxtme"]
     )
     behavior_module.add(nlxeye)

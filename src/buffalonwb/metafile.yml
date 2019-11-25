@@ -2,25 +2,25 @@ Behavior:
   EyeTracking:
     name: EyeTracking
     spatial_series:
-      data: true
-      description: eye tracking
-      name: SpatialSeries
-      reference_frame: ''
+      - data: true
+        description: eye tracking
+        name: SpatialSeries
+        reference_frame: ''
   Position:
     name: Position
     spatial_series:
-      data: true
-      description: position in virtual reality
-      name: SpatialSeries
-      reference_frame: ''
+      - data: true
+        description: position in virtual reality
+        name: SpatialSeries
+        reference_frame: ''
 Ecephys:
   Device:
-    name: ADDME
+    - name: Device
   ElectrodeGroup:
-    description: ADDME
-    device: ADDME
-    location: Hippocampus
-    name: ElectrodeGroup
+    - description: electrode_group_description
+      device: Device
+      location: Hippocampus
+      name: ElectrodeGroup
 NWBFile:
   experiment_description: ADDME
   experimenter: Yoni Browning

@@ -17,8 +17,8 @@ source_paths['sorted spikes'] = {'type': 'file', 'path': ''}
 kwargs_fields = {
     'skip_raw': False,
     'skip_processed': False,
-    'lfp_iterator_flag': True,
-    'no_copy': False
+    'no_lfp_iterator': False,
+    'copy_raw': False
 }
 
 nwbn_conversion_gui(metafile=metafile, conversion_module=conversion_module,
