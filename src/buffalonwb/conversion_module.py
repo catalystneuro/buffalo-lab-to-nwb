@@ -2,7 +2,7 @@ from pynwb import NWBHDF5IO, NWBFile
 
 from buffalonwb import __version__
 from buffalonwb.add_units import add_units
-from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
+from buffalonwb.add_raw_nlx_data import add_raw_nlx_data, get_csc_file_header_info
 from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
 
@@ -57,9 +57,10 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
     electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
 
     # localize session start time to Pacific time for Buffalo Lab
-    # TODO this time has only seconds resolution, not ms or us. where is this information?
+    # Get session_start_time from CSC 'TimeCreated' field, it does not contain Milliseconds
+    header = get_csc_file_header_info(raw_nlx_path=raw_nlx_path)
     metadata['NWBFile']['session_start_time'] = pytz.timezone('US/Pacific').localize(
-        metadata['NWBFile']['session_start_time']
+        header['TimeCreated']
     )
 
     # Build NWB file
@@ -103,12 +104,12 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
             electrode_table_region = nwbfile_proc.acquisition.electrodes
 
         # Add processed behavior data
-        # if behavior_file is not None:
-        #     add_behavior(
-        #         nwbfile=nwbfile_proc,
-        #         behavior_file=str(behavior_file),
-        #         metadata_behavior=metadata['Behavior']
-        #     )
+        if behavior_file is not None:
+            add_behavior(
+                nwbfile=nwbfile_proc,
+                behavior_file=str(behavior_file),
+                metadata_behavior=metadata['Behavior']
+            )
 
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
