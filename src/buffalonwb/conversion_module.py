@@ -101,7 +101,7 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
             raw_io = NWBHDF5IO(out_file_raw, mode='r')
             raw_nwbfile_in = raw_io.read()
             nwbfile_proc = raw_nwbfile_in.copy()
-            electrode_table_region = nwbfile_proc.acquisition.electrodes
+            electrode_table_region = nwbfile_proc.acquisition['ElectricalSeries'].electrodes
 
         # Add processed behavior data
         if behavior_file is not None:
@@ -137,8 +137,6 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
             with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
                 io.write(nwbfile_proc)
             raw_io.close()
-
-        print(nwbfile_proc)
 
 
 def check_source_paths(source_paths):
