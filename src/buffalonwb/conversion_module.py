@@ -14,7 +14,7 @@ import argparse
 from natsort import natsorted
 
 
-def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
+def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed, no_lfp_iterator):
     """
     Main function for conversion of Buffalo lab data from Neuralynx/Matlab/Neuroexplorer formats to NWB.
 
@@ -37,9 +37,6 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
         Whether to skip adding processed data to the file.
     no_lfp_iterator : bool
         Whether to not use a data chunk iterator over channels for the LFP data.
-    copy_raw : bool
-        Whether to copy the raw data instead of create a link between the processed data NWB file and the raw data NWB
-        file.
 
     """
 
@@ -63,23 +60,23 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
         header['TimeCreated']
     )
 
-    # Build NWB file
-    nwbfile = NWBFile(**metadata['NWBFile'])
-
-    # Add device and electrodes based on given metadata and electrode labels
-    electrode_table_region = add_electrodes(
-        nwbfile=nwbfile,
-        metadata_ecephys=metadata['Ecephys'],
-        num_electrodes=len(electrode_labels),
-        electrode_labels=electrode_labels
-    )
-
     if skip_raw:
         print("Skipping raw data...")
     if not skip_raw:
+        # Build NWB file
+        nwb_raw = NWBFile(**metadata['NWBFile'])
+
+        # Add device and electrodes based on given metadata and electrode labels
+        electrode_table_region = add_electrodes(
+            nwbfile=nwb_raw,
+            metadata_ecephys=metadata['Ecephys'],
+            num_electrodes=len(electrode_labels),
+            electrode_labels=electrode_labels
+        )
+
         # Add raw data
         add_raw_nlx_data(
-            nwbfile=nwbfile,
+            nwbfile=nwb_raw,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
         )
@@ -87,26 +84,27 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
         # Write raw data to NWB file
         print('Writing to file: ' + out_file_raw)
         with NWBHDF5IO(out_file_raw, mode='w') as io:
-            io.write(nwbfile)
-        print(nwbfile)
+            io.write(nwb_raw)
+        print(nwb_raw)
 
     if skip_processed:
         print("Skipping processed data...")
-    if not skip_processed:
-        if not copy_raw or skip_raw:
-            nwbfile_proc = nwbfile
-        else:
-            # Copy from raw data NWB file to maintain file linkage
-            print('Copying NWB file ' + out_file_raw)
-            raw_io = NWBHDF5IO(out_file_raw, mode='r')
-            raw_nwbfile_in = raw_io.read()
-            nwbfile_proc = raw_nwbfile_in.copy()
-            electrode_table_region = nwbfile_proc.acquisition['ElectricalSeries'].electrodes
+    else:
+        # Build NWB file
+        nwb_proc = NWBFile(**metadata['NWBFile'])
+
+        # Add device and electrodes based on given metadata and electrode labels
+        electrode_table_region = add_electrodes(
+            nwbfile=nwb_proc,
+            metadata_ecephys=metadata['Ecephys'],
+            num_electrodes=len(electrode_labels),
+            electrode_labels=electrode_labels
+        )
 
         # Add processed behavior data
         if behavior_file is not None:
             add_behavior(
-                nwbfile=nwbfile_proc,
+                nwbfile=nwb_proc,
                 behavior_file=str(behavior_file),
                 metadata_behavior=metadata['Behavior']
             )
@@ -114,14 +112,14 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(
-                nwbfile=nwbfile_proc,
+                nwbfile=nwb_proc,
                 nex_file_name=sorted_spikes_nex5_file
             )
 
         # Add LFP
         if lfp_mat_path is not None:
             add_lfp(
-                nwbfile=nwbfile_proc,
+                nwbfile=nwb_proc,
                 lfp_path=lfp_mat_path,
                 electrodes=electrode_table_region,
                 iterator_flag=not no_lfp_iterator,
@@ -130,13 +128,8 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
-        if not copy_raw or skip_raw:
-            with NWBHDF5IO(out_file_processed, mode='w') as io:
-                io.write(nwbfile_proc)
-        else:
-            with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-                io.write(nwbfile_proc)
-            raw_io.close()
+        with NWBHDF5IO(out_file_processed, mode='w') as io:
+            io.write(nwb_proc)
 
 
 def check_source_paths(source_paths):
@@ -271,13 +264,6 @@ if __name__ == '__main__':
         default=False,
         help="Whether to use the LFP channel iterator",
     )
-    parser.add_argument(
-        "--copyraw",
-        action="store_true",
-        default=False,
-        help=("Whether to copy the raw data instead of create a link between the processed data NWB file and the "
-              "raw data NWB file"),
-    )
 
     if not sys.argv[1:]:
         args = parser.parse_args(["--help"])
@@ -296,5 +282,4 @@ if __name__ == '__main__':
                         metafile=args.metadata_yaml_file,
                         skip_raw=args.skipraw,
                         skip_processed=args.skipprocessed,
-                        no_lfp_iterator=args.nolfpiterator,
-                        copy_raw=args.copyraw)
+                        no_lfp_iterator=args.nolfpiterator)
