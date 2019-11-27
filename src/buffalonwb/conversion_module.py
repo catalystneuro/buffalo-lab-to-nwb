@@ -5,6 +5,7 @@ from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data, get_csc_file_header_info
 from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
+from nexfile import nexfile
 
 from pathlib import Path
 import ruamel.yaml as yaml
@@ -101,19 +102,24 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
             electrode_labels=electrode_labels
         )
 
-        # Add processed behavior data
-        if behavior_file is not None:
-            add_behavior(
-                nwbfile=nwb_proc,
-                behavior_file=str(behavior_file),
-                metadata_behavior=metadata['Behavior']
-            )
-
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(
                 nwbfile=nwb_proc,
                 nex_file_name=sorted_spikes_nex5_file
+            )
+            file_data = nexfile.Reader(useNumpy=True).ReadNexFile(sorted_spikes_nex5_file)
+            t0_processed = file_data["FileHeader"]["Beg"]
+        else:
+            t0_processed = 0.
+
+        # Add processed behavior data
+        if behavior_file is not None:
+            add_behavior(
+                nwbfile=nwb_proc,
+                behavior_file=str(behavior_file),
+                metadata_behavior=metadata['Behavior'],
+                t0 = t0_processed
             )
 
         # Add LFP
@@ -123,7 +129,7 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
                 lfp_path=lfp_mat_path,
                 electrodes=electrode_table_region,
                 iterator_flag=not no_lfp_iterator,
-                all_electrode_labels=electrode_labels
+                all_electrode_labels=electrode_labels,
             )
 
         # Write processed data to NWB file

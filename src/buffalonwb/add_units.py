@@ -1,11 +1,12 @@
 from nexfile import nexfile
 from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
-
+import numpy as np
 
 # From Ryan Ly
 def add_units(nwbfile, nex_file_name, include_waveforms=False):
 
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
+    t0 = file_data["FileHeader"]["Beg"]
 
     # first half of variables contains spike times, second half contains spike waveforms for each spike time
     num_vars = len(file_data['Variables'])
@@ -81,7 +82,7 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
             kwargs.update(waveforms=var['WaveformValues'])
         nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
                          unit_name=var_header['Name'],
-                         spike_times=var['Timestamps'],
+                         spike_times=np.array(var['Timestamps']) - t0,
                          pre_threshold_samples=var_header['PreThrTime'],
                          num_samples=var_header['NPointsWave'],
                          num_spikes=var_header['Count'],
