@@ -13,16 +13,20 @@ pip install git+https://github.com/ben-dichter-consulting/buffalo-lab-data-to-nw
 The conversion function can be used in different forms:
 
 **1. Imported and run from a python script:** <br/>
-Here's an example: we'll grab the data from the same experiment but stored in different `.npz` files and save it to a single `.nwb` file.
+Here's an example: we'll grab raw data (`.ncs` files) and processed data (`.mat` and `.nex5` files) and convert them to `.nwb` files.
 ```python
 from buffalonwb.conversion_module import conversion_function
+from pathlib import Path
 import yaml
 
+base_path = Path(BASE_PATH_TO_FILES)
+
+# Source files
 source_paths = dict()
-source_paths['raw Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
-source_paths['processed Nlx'] = {'type': 'dir', 'path': PATH_TO_DIR}
-source_paths['processed behavior'] = {'type': 'file', 'path': PATH_TO_FILE}
-source_paths['sorted spikes'] = {'type': 'file', 'path': PATH_TO_FILE}
+source_paths['raw Nlx'] = {'type': 'dir', 'path': base_path.joinpath("RawNlxCSCs")}
+source_paths['processed Nlx'] = {'type': 'dir', 'path': str(base_path.joinpath('ProcessedNlxData'))}
+source_paths['processed behavior'] = {'type': 'file', 'path': str(base_path.joinpath('ProcessedBehavior/MatFile_2017-04-27_11-41-21.mat'))}
+source_paths['sorted spikes'] = {'type': 'file', 'path': str(base_path.joinpath('SortedSpikes/2017-04-27_11-41-21_sorted.nex5'))}
 
 # Output .nwb file
 f_nwb = 'buffalo.nwb'
