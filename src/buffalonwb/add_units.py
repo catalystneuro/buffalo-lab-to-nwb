@@ -84,7 +84,7 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
         else:
             kwargs.update(num_samples=var_header['Count'])
         nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
-                         unit_name=var_header['Name'],
+                         label=var_header['Name'],
                          spike_times=np.array(var['Timestamps']) - t0,
                          pre_threshold_samples=var_header['PreThrTime'],
                          num_samples=var_header['NPointsWave'],
