@@ -62,9 +62,8 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
     #             then the timestamp of the first point of waveform is t - PrethresholdTimeInSeconds
 
     # add these columns to unit table
-    nwbfile.add_unit_column('name', 'name')
+    nwbfile.add_unit_column('label', 'NEX label of cluster')
     nwbfile.add_unit_column('pre_threshold_samples', 'number of samples before threshold')
-    nwbfile.add_unit_column('num_samples', 'number of samples for each spike waveform')
     nwbfile.add_unit_column('num_spikes', 'number of spikes')
     nwbfile.add_unit_column('sampling_rate', 'sampling rate')
     nwbfile.add_unit_column('nex_var_version', 'variable version in the NEX5 file')
@@ -72,6 +71,8 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
     # since waveforms are not a 1:1 mapping per unit, use table indexing
     if include_waveforms:
         nwbfile.add_unit_column('waveforms', 'waveforms for each spike', index=True)
+    else:
+        nwbfile.add_unit_column('num_samples', 'number of samples for each spike waveform')
 
     for i in range(start_var, num_vars):
         var = file_data['Variables'][i]
@@ -79,12 +80,13 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
         kwargs = dict()
         if include_waveforms:
             kwargs.update(waveforms=var['WaveformValues'])
+        else:
+            kwargs.update(num_samples=var_header['Count'])
         nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
                          name=var_header['Name'],
                          spike_times=var['Timestamps'],
                          pre_threshold_samples=var_header['PreThrTime'],
                          num_samples=var_header['NPointsWave'],
-                         num_spikes=var_header['Count'],
                          sampling_rate=var_header['SamplingRate'],
                          nex_var_version=var_header['Version'],
                          **kwargs)
