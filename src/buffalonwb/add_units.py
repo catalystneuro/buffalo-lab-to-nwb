@@ -37,32 +37,6 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
         if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
 
-    # var["Header"]["Type"] -- 3 - waveform
-    # var["Header"]["Name"] -- variable name
-    # var["Header"]["Version"] -- variable version in file
-    # var["Header"]["Count"] -- number of waveforms
-    # var["Header"]["TsDataType"] --
-    #             if 0, timestamps are stored as 32-bit integers;
-    #             if 1, timestamps are stored as 64-bit integers;
-    #             supported by NeuroExplorer version 5.100 or greater
-    # var["Header"]["ContDataType"] --
-    #             if 0, waveform and continuous values are stored as 16-bit integers;
-    #             if 1, waveform and continuous values are stored as 32-bit floating point values in units specified in
-    #             Units field
-    # var["Header"]["SamplingRate"] -- waveform sampling frequency in Hertz
-    # var["Header"]["ADtoMV"] --
-    #             coefficient to convert from A/D values stored in file to units.
-    #             A/D values in fileData are already scaled to units.
-    #             see formula below MVOffset below;
-    # var["Header"]["MVOffset"] --
-    #             this offset is used to convert A/D values stored in file to units:
-    #             value_in_units = raw * ADtoUnitsCoefficient + UnitsOffset;
-    #             A/D values in fileData are already scaled to units.
-    # var["Header"]["NPointsWave"] -- number of data points in each waveform
-    # var["Header"]["PreThrTime"] -- pre-threshold time in seconds
-    #             if waveform timestamp in seconds is t,
-    #             then the timestamp of the first point of waveform is t - PrethresholdTimeInSeconds
-
     # add these columns to unit table
     nwbfile.add_unit_column('label', 'NEX label of cluster')
     nwbfile.add_unit_column('pre_threshold_samples', 'number of samples before threshold')
