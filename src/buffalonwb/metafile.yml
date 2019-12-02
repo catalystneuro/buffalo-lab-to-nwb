@@ -2,15 +2,13 @@ Behavior:
   EyeTracking:
     name: EyeTracking
     spatial_series:
-      - data: true
-        description: eye tracking
+      - description: eye tracking
         name: SpatialSeries
         reference_frame: ADDME
   Position:
     name: Position
     spatial_series:
-      - data: true
-        description: position in virtual reality
+      - description: position in virtual reality
         name: SpatialSeries
         reference_frame: ADDME
 Ecephys:
