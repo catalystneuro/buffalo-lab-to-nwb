@@ -4,7 +4,11 @@ import numpy as np
 from pynwb.behavior import Position, EyeTracking
 
 
-def add_behavior(nwbfile, behavior_file, metadata_behavior):
+def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
+    # The timestamps for behavior data, coming from .mat files, are in milliseconds
+    # and should be transformed to seconds with / 1000
+    # t0 is taken from fileData["FileHeader"]["Beg"] of .nex5 file
+
     print("adding behavior...")
     # process raw behavior
     behavior_data = loadmat(behavior_file)
@@ -14,7 +18,8 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     )
 
     # Player Position
-    pos = Position(name='Position')
+    meta_pos = metadata_behavior['Position']
+    pos = Position(name=meta_pos['name'])
     for epoch in range(1, 7):
         if epoch == 3:
             epoch_data = behavior_data["behavior"][epoch - 1]
@@ -26,12 +31,11 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
             all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
 
     # Metadata for SpatialSeries stored in Position
-    meta_pos = metadata_behavior['Position']
     pos.create_spatial_series(
-        name=meta_pos['spatial_series']['name'],
+        name=meta_pos['spatial_series'][0]['name'],
         data=all_pos,
-        reference_frame=meta_pos['spatial_series']['reference_frame'],
-        timestamps=all_tme
+        reference_frame=meta_pos['spatial_series'][0]['reference_frame'],
+        timestamps=all_tme / 1000. - t0
     )
     behavior_module.add(pos)
 
@@ -40,10 +44,10 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     # metadata for SpatialSeries stored in EyeTracking
     meta_et = metadata_behavior['EyeTracking']
     nlxeye.create_spatial_series(
-        name=meta_et['spatial_series']['name'],
+        name=meta_et['spatial_series'][0]['name'],
         data=np.array(behavior_data["nlxeye"]).T,
-        reference_frame=meta_et['spatial_series']['reference_frame'],
-        timestamps=behavior_data["nlxtme"]
+        reference_frame=meta_et['spatial_series'][0]['reference_frame'],
+        timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0
     )
     behavior_module.add(nlxeye)
 
@@ -68,10 +72,10 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior):
     for epoch in range(1, 7):
         epoch_data = behavior_data["behavior"][epoch - 1]
         if epoch < 3:
-            process_behavior_calibration(nwbfile, epoch, epoch_data)
+            process_behavior_calibration(nwbfile, epoch, epoch_data, t0)
         else:
             banana_flag = 1
-            process_behavior(nwbfile, epoch, epoch_data, banana_flag, event_dict)
+            process_behavior(nwbfile, epoch, epoch_data, banana_flag, event_dict, t0)
 
 
 # https://stackoverflow.com/questions/7008608/scipy-io-loadmat-nested-structures-i-e-dictionaries
@@ -133,7 +137,7 @@ def loadmat(filename):
 # BEHAVIOR FUNCTIONS
 # def add_trial_columns():
 
-def process_behavior_calibration(nwbfile,session, data):
+def process_behavior_calibration(nwbfile, session, data, t0):
     # convert to floats
     # add calibration trials (session 1 & 2 )
     # no time series data, everything is inside trials
@@ -141,17 +145,17 @@ def process_behavior_calibration(nwbfile,session, data):
     for t in range(0, num_trials):
         # add rest of calibration stuff
         trial_data = data["is_auto"][t]
-        nwbfile.add_trial(start_time=float(data["start_trial"][t][0]),
-                          stop_time=float(data["end_trial"][t][0]),
+        nwbfile.add_trial(start_time=float(data["start_trial"][t][0]) / 1000. - t0,
+                          stop_time=float(data["end_trial"][t][0]) / 1000. - t0,
                           environment="calibration")  # ,
         # trial_vars=trial_data)
-    nwbfile.add_epoch(start_time=float(data["start_trial"][0][0]),
-                      stop_time=float(data["end_trial"][num_trials - 1][0]),
+    nwbfile.add_epoch(start_time=float(data["start_trial"][0][0]) / 1000. - t0,
+                      stop_time=float(data["end_trial"][num_trials - 1][0]) / 1000. - t0,
                       tags=["session: " + str(session), "envronment: calibraton"],
                       timeseries=[])
 
 
-def process_behavior(nwbfile,session, data, banana_flag, event_dict):
+def process_behavior(nwbfile, session, data, banana_flag, event_dict, t0):
     #
 
     # process events to time stamps
@@ -185,12 +189,12 @@ def process_behavior(nwbfile,session, data, banana_flag, event_dict):
 
     # add trials and epoch
     for t in range(0, num_trials):
-        nwbfile.add_trial(start_time=start_trial[t],
-                          stop_time=end_trial[t],
+        nwbfile.add_trial(start_time=start_trial[t] / 1000. - t0,
+                          stop_time=end_trial[t] / 1000. - t0,
                           environment=data["env"])  # , trial_vars=trial_data)
 
-    nwbfile.add_epoch(start_time=start_trial[0],
-                      stop_time=end_trial[num_trials - 1],
+    nwbfile.add_epoch(start_time=start_trial[0] / 1000. - t0,
+                      stop_time=end_trial[num_trials - 1] / 1000. - t0,
                       tags=['session: ' + str(session), 'envronment: ' + data["env"]],
                       timeseries=[])
 

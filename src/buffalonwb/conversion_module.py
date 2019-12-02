@@ -2,9 +2,10 @@ from pynwb import NWBHDF5IO, NWBFile
 
 from buffalonwb import __version__
 from buffalonwb.add_units import add_units
-from buffalonwb.add_raw_nlx_data import add_raw_nlx_data
+from buffalonwb.add_raw_nlx_data import add_raw_nlx_data, get_csc_file_header_info
 from buffalonwb.add_behavior import add_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
+from nexfile import nexfile
 
 from pathlib import Path
 import ruamel.yaml as yaml
@@ -14,7 +15,7 @@ import argparse
 from natsort import natsorted
 
 
-def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed, no_lfp_iterator, copy_raw):
+def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed, no_lfp_iterator):
     """
     Main function for conversion of Buffalo lab data from Neuralynx/Matlab/Neuroexplorer formats to NWB.
 
@@ -29,17 +30,14 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     f_nwb : str
         Stem to output file. Two files might be produced using this stem:
         'f_nwb_raw.nwb' and 'f_nwb_processed.nwb'
-    metafile : str or path
-        Yaml metadata file.
+    metadata : dict
+        Metadata dictionary.
     skip_raw : bool
         Whether to skip adding raw data to the file.
     skip_processed : bool
         Whether to skip adding processed data to the file.
     no_lfp_iterator : bool
         Whether to not use a data chunk iterator over channels for the LFP data.
-    copy_raw : bool
-        Whether to copy the raw data instead of create a link between the processed data NWB file and the raw data NWB
-        file.
 
     """
 
@@ -53,36 +51,33 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
     out_file_raw = str(nwbpath.joinpath(Path(f_nwb).stem + '_raw.nwb'))
     out_file_processed = str(nwbpath.joinpath(Path(f_nwb).stem + '_processed.nwb'))
 
-    # Load metadata from YAML file
-    with open(metafile) as f:
-        metadata = yaml.safe_load(f)
-
     # Get electrode labels from raw nlx directory file names
     electrode_labels = natsorted([x.stem for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
 
     # localize session start time to Pacific time for Buffalo Lab
-    # TODO this time has only seconds resolution, not ms or us. where is this information?
+    # Get session_start_time from CSC 'TimeCreated' field, it does not contain Milliseconds
+    header = get_csc_file_header_info(raw_nlx_path=raw_nlx_path)
     metadata['NWBFile']['session_start_time'] = pytz.timezone('US/Pacific').localize(
-        metadata['NWBFile']['session_start_time']
-    )
-
-    # Build NWB file
-    nwbfile = NWBFile(**metadata['NWBFile'])
-
-    # Add device and electrodes based on given metadata and electrode labels
-    electrode_table_region = add_electrodes(
-        nwbfile=nwbfile,
-        metadata_ecephys=metadata['Ecephys'],
-        num_electrodes=len(electrode_labels),
-        electrode_labels=electrode_labels
+        header['TimeCreated']
     )
 
     if skip_raw:
         print("Skipping raw data...")
     if not skip_raw:
+        # Build NWB file
+        nwb_raw = NWBFile(**metadata['NWBFile'])
+
+        # Add device and electrodes based on given metadata and electrode labels
+        electrode_table_region = add_electrodes(
+            nwbfile=nwb_raw,
+            metadata_ecephys=metadata['Ecephys'],
+            num_electrodes=len(electrode_labels),
+            electrode_labels=electrode_labels
+        )
+
         # Add raw data
         add_raw_nlx_data(
-            nwbfile=nwbfile,
+            nwbfile=nwb_raw,
             raw_nlx_path=raw_nlx_path,
             electrode_table_region=electrode_table_region,
         )
@@ -90,58 +85,57 @@ def conversion_function(source_paths, f_nwb, metafile, skip_raw, skip_processed,
         # Write raw data to NWB file
         print('Writing to file: ' + out_file_raw)
         with NWBHDF5IO(out_file_raw, mode='w') as io:
-            io.write(nwbfile)
-        print(nwbfile)
+            io.write(nwb_raw)
+        print(nwb_raw)
 
     if skip_processed:
         print("Skipping processed data...")
-    if not skip_processed:
-        if not copy_raw or skip_raw:
-            nwbfile_proc = nwbfile
-        else:
-            # Copy from raw data NWB file to maintain file linkage
-            print('Copying NWB file ' + out_file_raw)
-            raw_io = NWBHDF5IO(out_file_raw, mode='r')
-            raw_nwbfile_in = raw_io.read()
-            nwbfile_proc = raw_nwbfile_in.copy()
-            electrode_table_region = nwbfile_proc.acquisition.electrodes
+    else:
+        # Build NWB file
+        nwb_proc = NWBFile(**metadata['NWBFile'])
 
-        # Add processed behavior data
-        if behavior_file is not None:
-            add_behavior(
-                nwbfile=nwbfile_proc,
-                behavior_file=str(behavior_file),
-                metadata_behavior=metadata['Behavior']
-            )
+        # Add device and electrodes based on given metadata and electrode labels
+        electrode_table_region = add_electrodes(
+            nwbfile=nwb_proc,
+            metadata_ecephys=metadata['Ecephys'],
+            num_electrodes=len(electrode_labels),
+            electrode_labels=electrode_labels
+        )
 
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(
-                nwbfile=nwbfile_proc,
+                nwbfile=nwb_proc,
                 nex_file_name=sorted_spikes_nex5_file
+            )
+            file_data = nexfile.Reader(useNumpy=True).ReadNexFile(sorted_spikes_nex5_file)
+            t0_processed = file_data["FileHeader"]["Beg"]
+        else:
+            t0_processed = 0.
+
+        # Add processed behavior data
+        if behavior_file is not None:
+            add_behavior(
+                nwbfile=nwb_proc,
+                behavior_file=str(behavior_file),
+                metadata_behavior=metadata['Behavior'],
+                t0 = t0_processed
             )
 
         # Add LFP
         if lfp_mat_path is not None:
             add_lfp(
-                nwbfile=nwbfile_proc,
+                nwbfile=nwb_proc,
                 lfp_path=lfp_mat_path,
                 electrodes=electrode_table_region,
                 iterator_flag=not no_lfp_iterator,
-                all_electrode_labels=electrode_labels
+                all_electrode_labels=electrode_labels,
             )
 
         # Write processed data to NWB file
         print('Writing to file: ' + out_file_processed)
-        if not copy_raw or skip_raw:
-            with NWBHDF5IO(out_file_processed, mode='w') as io:
-                io.write(nwbfile_proc)
-        else:
-            with NWBHDF5IO(out_file_processed, mode='w', manager=raw_io.manager) as io:
-                io.write(nwbfile_proc)
-            raw_io.close()
-
-        print(nwbfile_proc)
+        with NWBHDF5IO(out_file_processed, mode='w') as io:
+            io.write(nwb_proc)
 
 
 def check_source_paths(source_paths):
@@ -181,19 +175,19 @@ def check_source_paths(source_paths):
 
 
 def add_electrodes(nwbfile, metadata_ecephys, num_electrodes, electrode_labels=None):
-    # Add device
-    device = nwbfile.create_device(name=metadata_ecephys['Device']['name'])
-
-    # Add electrode group -- assume only one
+        # Add electrode groups
     metadata_eg = metadata_ecephys['ElectrodeGroup']
-    if metadata_eg['device'] != device.name:
-        raise Exception('Name of device in ElectrodeGroup must match the single Device name in the metadata YAML file')
-    electrode_group = nwbfile.create_electrode_group(
-        name=metadata_eg['name'],
-        description=metadata_eg['description'],
-        location=metadata_eg['location'],
-        device=device
-    )
+    for eg in metadata_eg:
+        if eg['device'] not in nwbfile.devices:
+            device = nwbfile.create_device(name=eg['device'])
+        else:
+            device = nwbfile.devices[eg['device']]
+        electrode_group = nwbfile.create_electrode_group(
+            name=eg['name'],
+            description=eg['description'],
+            location=eg['location'],
+            device=device
+        )
 
     if electrode_labels:
         nwbfile.add_electrode_column('label', 'labels of electrodes')
@@ -276,13 +270,6 @@ if __name__ == '__main__':
         default=False,
         help="Whether to use the LFP channel iterator",
     )
-    parser.add_argument(
-        "--copyraw",
-        action="store_true",
-        default=False,
-        help=("Whether to copy the raw data instead of create a link between the processed data NWB file and the "
-              "raw data NWB file"),
-    )
 
     if not sys.argv[1:]:
         args = parser.parse_args(["--help"])
@@ -301,5 +288,4 @@ if __name__ == '__main__':
                         metafile=args.metadata_yaml_file,
                         skip_raw=args.skipraw,
                         skip_processed=args.skipprocessed,
-                        no_lfp_iterator=args.nolfpiterator,
-                        copy_raw=args.copyraw)
+                        no_lfp_iterator=args.nolfpiterator)

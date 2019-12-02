@@ -4,7 +4,7 @@
 # ------------------------------------------------------------------------------
 from nwbn_conversion_tools.gui.nwbn_conversion_gui import nwbn_conversion_gui
 
-metafile = 'metafile.yaml'
+metafile = 'metafile.yml'
 
 conversion_module = 'conversion_module.py'
 
@@ -17,8 +17,7 @@ source_paths['sorted spikes'] = {'type': 'file', 'path': ''}
 kwargs_fields = {
     'skip_raw': False,
     'skip_processed': False,
-    'lfp_iterator_flag': True,
-    'no_copy': False
+    'no_lfp_iterator': False
 }
 
 nwbn_conversion_gui(metafile=metafile, conversion_module=conversion_module,

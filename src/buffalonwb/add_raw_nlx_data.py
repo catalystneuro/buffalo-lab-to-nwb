@@ -301,3 +301,15 @@ def read_csc_file(csc_file_path):
                  % (expected_last_ts, ts[-1], (expected_last_ts - ts[-1]) / 1000, 1e6 * len(ts) / (ts[-1] - ts[0])))
 
         return header_data, ts, data
+
+
+def get_csc_file_header_info(raw_nlx_path):
+    """Get header info from a CSC .ncs file."""
+    # get paths to all CSC data files, excluding the 16 kB header files with '_' in the name
+    data_files = natsorted([x.name for x in raw_nlx_path.glob('CSC*.ncs') if '_' not in x.stem])
+    data_paths = [raw_nlx_path / x for x in data_files]
+
+    with open(data_paths[0], 'rb') as data_file:
+        header = data_file.read(_CSC_HEADER_SIZE)
+        header_data = parse_header(header)
+    return header_data
