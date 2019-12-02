@@ -4,7 +4,7 @@
 # ------------------------------------------------------------------------------
 from nwbn_conversion_tools.gui.nwbn_conversion_gui import nwbn_conversion_gui
 
-metafile = 'metafile.yaml'
+metafile = 'metafile.yml'
 
 conversion_module = 'conversion_module.py'
 
