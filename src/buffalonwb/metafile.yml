@@ -20,7 +20,6 @@ Ecephys:
       location: Hippocampus
       name: ElectrodeGroup
 NWBFile:
-  experiment_description: ADDME
   experimenter: Yoni Browning
   identifier: ADDME
   institution: University of Washington
@@ -30,8 +29,6 @@ NWBFile:
   - hippocampus
   lab: Buffalo Lab
   session_description: ADDME
-  session_id: ADDME
-  related_publications:
   session_start_time: 2017-05-04 11:23:13
   source_script: https://github.com/ben-dichter-consulting/buffalo-lab-data-to-nwb
   source_script_file_name: conversion_module.py
