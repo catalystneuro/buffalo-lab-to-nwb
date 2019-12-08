@@ -4,11 +4,26 @@ import numpy as np
 import warnings
 
 
+def get_t0_nex5(nex_file_name):
+    """Get first spike time"""
+    file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
+
+    # first half of variables contains spike times, second half contains spike waveforms for each spike time
+    num_vars = len(file_data['Variables'])
+    t0 = np.Inf
+    for i in range(0, int(num_vars/2)):
+        var = file_data['Variables'][i]
+        t0_curr = var['Timestamps'][0]
+        t0 = min(t0, t0_curr)
+
+    return t0
+
+
 # From Ryan Ly
-def add_units(nwbfile, nex_file_name, include_waveforms=False):
+def add_units(nwbfile, nex_file_name, t0, include_waveforms=False):
 
     file_data = nexfile.Reader(useNumpy=True).ReadNexFile(nex_file_name)
-    t0 = file_data["FileHeader"]["Beg"]
+    # t0 = file_data["FileHeader"]["Beg"]
 
     # first half of variables contains spike times, second half contains spike waveforms for each spike time
     num_vars = len(file_data['Variables'])

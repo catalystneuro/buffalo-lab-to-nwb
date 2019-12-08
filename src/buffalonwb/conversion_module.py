@@ -1,18 +1,19 @@
 from pynwb import NWBHDF5IO, NWBFile
 
 from buffalonwb import __version__
-from buffalonwb.add_units import add_units
 from buffalonwb.add_raw_nlx_data import add_raw_nlx_data, get_csc_file_header_info
-from buffalonwb.add_behavior import add_behavior
+from buffalonwb.add_units import add_units, get_t0_nex5
+from buffalonwb.add_behavior import add_behavior, get_t0_behavior
 from buffalonwb.add_processed_nlx_data import add_lfp
 from nexfile import nexfile
 
+from natsort import natsorted
 from pathlib import Path
+import numpy as np
 import ruamel.yaml as yaml
 import pytz
 import math
 import argparse
-from natsort import natsorted
 
 
 def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed, no_lfp_iterator):
@@ -102,16 +103,20 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
             electrode_labels=electrode_labels
         )
 
+        # Get reference time for t0
+        t0 = np.Inf
+        if sorted_spikes_nex5_file is not None:
+            t0 = min(t0, get_t0_nex5(sorted_spikes_nex5_file))
+        if behavior_file is not None:
+            t0 = min(t0, get_t0_behavior(behavior_file))
+
         # Add sorted units
         if sorted_spikes_nex5_file is not None:
             add_units(
                 nwbfile=nwb_proc,
-                nex_file_name=sorted_spikes_nex5_file
+                nex_file_name=sorted_spikes_nex5_file,
+                t0=t0
             )
-            file_data = nexfile.Reader(useNumpy=True).ReadNexFile(sorted_spikes_nex5_file)
-            t0_processed = file_data["FileHeader"]["Beg"]
-        else:
-            t0_processed = 0.
 
         # Add processed behavior data
         if behavior_file is not None:
@@ -119,7 +124,7 @@ def conversion_function(source_paths, f_nwb, metadata, skip_raw, skip_processed,
                 nwbfile=nwb_proc,
                 behavior_file=str(behavior_file),
                 metadata_behavior=metadata['Behavior'],
-                t0 = t0_processed
+                t0=t0
             )
 
         # Add LFP

@@ -4,10 +4,17 @@ import numpy as np
 from pynwb.behavior import Position, EyeTracking
 
 
+def get_t0_behavior(behavior_file):
+    """Get initial timestamp"""
+    behavior_data = loadmat(behavior_file)
+    t0_0 = behavior_data['nlxtme'][0] / 1000.
+    t0_1 = behavior_data['behavior'][0]['start_trial'][0][0] / 1000.
+    return min(t0_0, t0_1)
+
+
 def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
     # The timestamps for behavior data, coming from .mat files, are in milliseconds
     # and should be transformed to seconds with / 1000
-    # t0 is taken from fileData["FileHeader"]["Beg"] of .nex5 file
 
     print("adding behavior...")
     # process raw behavior
