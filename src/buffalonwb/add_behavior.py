@@ -32,7 +32,8 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
         name=meta_pos['spatial_series'][0]['name'],
         data=all_pos,
         reference_frame=meta_pos['spatial_series'][0]['reference_frame'],
-        timestamps=all_tme / 1000. - t0
+        timestamps=all_tme / 1000. - t0,
+        conversion=np.nan
     )
     behavior_module.add(pos)
 
@@ -44,7 +45,8 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
         name=meta_et['spatial_series'][0]['name'],
         data=np.array(behavior_data["nlxeye"]).T,
         reference_frame=meta_et['spatial_series'][0]['reference_frame'],
-        timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0
+        timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0,
+        conversion=np.nan
     )
     behavior_module.add(nlxeye)
 
