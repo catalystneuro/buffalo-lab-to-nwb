@@ -16,19 +16,16 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
         name='behavior',
         description='preprocessed behavioral data'
     )
-
     # Player Position
     meta_pos = metadata_behavior['Position']
     pos = Position(name=meta_pos['name'])
-    for epoch in range(1, 7):
-        if epoch == 3:
-            epoch_data = behavior_data["behavior"][epoch - 1]
-            all_pos = np.array(epoch_data['posdat'])
-            all_tme = np.array(epoch_data['tme'])
-        elif epoch > 3:
-            epoch_data = behavior_data["behavior"][epoch - 1]
-            all_pos = np.concatenate((all_pos, np.array(epoch_data['posdat'])))
-            all_tme = np.concatenate((all_tme, np.array(epoch_data['tme'])))
+    all_pos = np.atleast_1d([[], [], []]).T
+    all_tme = []
+    for iepoch in range(len(behavior_data["behavior"])):
+        if 'posdat' in behavior_data['behavior'][iepoch]:
+            epoch_data = behavior_data["behavior"][iepoch]
+            all_pos = np.r_[all_pos, epoch_data['posdat']]
+            all_tme = np.r_[all_tme, epoch_data['tme']]
 
     # Metadata for SpatialSeries stored in Position
     pos.create_spatial_series(
@@ -69,13 +66,13 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
                   "successful_trial": 200}
 
     # process behavior here
-    for epoch in range(1, 7):
-        epoch_data = behavior_data["behavior"][epoch - 1]
-        if epoch < 3:
-            process_behavior_calibration(nwbfile, epoch, epoch_data, t0)
+    for iepoch in range(len(behavior_data["behavior"])):
+        epoch_data = behavior_data["behavior"][iepoch]
+        if iepoch < 2:
+            process_behavior_calibration(nwbfile, iepoch + 1, epoch_data, t0)
         else:
             banana_flag = 1
-            process_behavior(nwbfile, epoch, epoch_data, banana_flag, event_dict, t0)
+            process_behavior(nwbfile, iepoch + 1, epoch_data, banana_flag, event_dict, t0)
 
 
 # https://stackoverflow.com/questions/7008608/scipy-io-loadmat-nested-structures-i-e-dictionaries
@@ -142,7 +139,7 @@ def process_behavior_calibration(nwbfile, session, data, t0):
     # add calibration trials (session 1 & 2 )
     # no time series data, everything is inside trials
     num_trials = len(data["start_trial"])
-    for t in range(0, num_trials):
+    for t in range(num_trials):
         # add rest of calibration stuff
         trial_data = data["is_auto"][t]
         nwbfile.add_trial(start_time=float(data["start_trial"][t][0]) / 1000. - t0,
@@ -166,7 +163,7 @@ def process_behavior(nwbfile, session, data, banana_flag, event_dict, t0):
     trial_data = dict()
     succesful_trial = list()
     num_trials = len(start_trial)
-    for t in range(0, num_trials):
+    for t in range(num_trials):
         succesful_trial.append(any((x > start_trial[t] and x < end_trial[t]) for x in success))
     trial_data["succesful_trial"] = succesful_trial
     trial_data["left_trial"] = left_trial
@@ -176,9 +173,9 @@ def process_behavior(nwbfile, session, data, banana_flag, event_dict, t0):
     if banana_flag == 1:
         if data["env"] == 'New':
             data["env"] = 'Garden'
-        elif data["env"] == []:
+        elif not len(data["env"]):
             data["env"] = 'Old'
-        for t in range(0, num_trials):
+        for t in range(num_trials):
             if succesful_trial[t] == 1:
                 # THIS IS BANANA TIME
                 end_trial[t] = end_trial[t] + 1000
@@ -188,7 +185,7 @@ def process_behavior(nwbfile, session, data, banana_flag, event_dict, t0):
     # nwbfile.add_acquisition(reward_ts)
 
     # add trials and epoch
-    for t in range(0, num_trials):
+    for t in range(num_trials):
         nwbfile.add_trial(start_time=start_trial[t] / 1000. - t0,
                           stop_time=end_trial[t] / 1000. - t0,
                           environment=data["env"])  # , trial_vars=trial_data)

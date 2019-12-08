@@ -1,6 +1,7 @@
 from nexfile import nexfile
 from buffalonwb.exceptions import InconsistentInputException, UnsupportedInputException
 import numpy as np
+import warnings
 
 
 # From Ryan Ly
@@ -30,9 +31,9 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
             raise UnsupportedInputException()
         if var_header['ADtoMV'] == 0:
             raise UnsupportedInputException()
-        if (var_ts_only['Timestamps'] != var['Timestamps']).any():
-            raise InconsistentInputException()
-        if var['Timestamps'].shape != (var_header['Count'], ):
+        if not np.array_equal(var_ts_only['Timestamps'], var['Timestamps']):
+            warnings.warn('cluster {} has mismatched spike timestamps'.format(var_header['Name']))
+        if var['Timestamps'].shape[0] != var_header['Count']:
             raise InconsistentInputException()
         if var['WaveformValues'].shape != (var_header['Count'], var_header['NPointsWave']):
             raise InconsistentInputException()
@@ -56,12 +57,15 @@ def add_units(nwbfile, nex_file_name, include_waveforms=False):
         if include_waveforms:
             kwargs.update(waveforms=var['WaveformValues'])
             kwargs.update(num_samples=var_header['Count'])
-
-        nwbfile.add_unit(electrodes=(int(var_header['Name'][3:-2]) - 1,),
+        try:
+            electrodes = (int(var_header['Name'][3:-2]) - 1,)
+        except ValueError:
+            electrodes = (int(var_header['Name'][3:]) - 1,)
+        nwbfile.add_unit(electrodes=electrodes,
                          label=var_header['Name'],
                          spike_times=np.array(var['Timestamps']) - t0,
                          pre_threshold_samples=var_header['PreThrTime'],
-                         num_spikes= len(var['Timestamps']),
+                         num_spikes=len(var['Timestamps']),
                          sampling_rate=var_header['SamplingRate'],
                          nex_var_version=var_header['Version'],
                          **kwargs)
