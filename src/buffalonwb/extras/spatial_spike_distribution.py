@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import time
@@ -49,7 +51,6 @@ def get_indexes_fast(spkts, pos_ts):
     return idxs
 
 
-
 def plot_spatial_spike_distribution(nwbfile, unit_id, save_fig=False):
     """
     Plots the spatial distribution of spikes.
@@ -66,8 +67,8 @@ def plot_spatial_spike_distribution(nwbfile, unit_id, save_fig=False):
     yr = (np.random.rand(nid)-.5)/2
 
     fig = plt.figure()
-    plt.plot(pos[idxs,0]+xr, pos[idxs,1]+yr, '.', markersize=1, alpha=.01)
+    plt.plot(pos[idxs, 0]+xr, pos[idxs, 1]+yr, '.', markersize=1, alpha=.01)
     plt.title('Unit '+str(unit_id)+',   nSpikes='+str(len(idxs)))
 
     if save_fig:
-        fig.savefig(os.path.join('figs','cell_'+str(unit_id)+'.png'), facecolor='w', edgecolor='w')
+        fig.savefig(os.path.join('figs', 'cell_' + str(unit_id) + '.png'), facecolor='w', edgecolor='w')
