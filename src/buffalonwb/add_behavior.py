@@ -48,11 +48,14 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
     nlxeye = EyeTracking(name='EyeTracking')
     # metadata for SpatialSeries stored in EyeTracking
     meta_et = metadata_behavior['EyeTracking']
+    tt = np.array(behavior_data["nlxtme"]) / 1000. - t0
     nlxeye.create_spatial_series(
         name=meta_et['spatial_series'][0]['name'],
         data=np.array(behavior_data["nlxeye"]).T,
         reference_frame=meta_et['spatial_series'][0]['reference_frame'],
-        timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0,
+        rate=(tt[-1] - tt[0]) / len(tt),
+        starting_time=tt[0],
+        #timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0,
         conversion=np.nan
     )
     behavior_module.add(nlxeye)
