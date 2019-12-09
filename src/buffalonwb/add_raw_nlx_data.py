@@ -219,13 +219,15 @@ def check_num_records(csc_file_path):
     return int(num_records)
 
 
-def read_csc_file(csc_file_path):
+def read_csc_file(csc_file_path, use_tqdm=False):
     """Read and parse a CSC .ncs file.
 
     Parameters
     ----------
     csc_file_path : Path
         Path for for a single CSC .ncs file.
+    use_tqdm: bool
+        Whether to use tqdm to display read progress
 
     Returns
     -------
@@ -257,7 +259,11 @@ def read_csc_file(csc_file_path):
         # Fs_r: The sampling frequency (Hz) for the data array.
         # num_valid_samples_r: Number of values in the data array containing valid data (max 512).
         # NOTE: for nested progress bars on Windows, the colorama package is required
-        for record_ind in trange(num_records, desc='Reading raw data: %s' % csc_file_path.stem, leave=False):
+        if use_tqdm:
+            record_iter = trange(num_records, desc='Reading raw data: %s' % csc_file_path.stem, leave=False)
+        else:
+            record_iter = range(num_records)
+        for record_ind in record_iter:
             read_record_header = data_file.read(_CSC_RECORD_HEADER_SIZE)
             first_ts_r, channel_number_r, Fs_r, num_valid_samples_r = unpack('<QIII', read_record_header)
 
