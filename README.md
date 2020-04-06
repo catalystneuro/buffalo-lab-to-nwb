@@ -6,7 +6,7 @@ authors: Luiz Tauffer, Maija Honig, Ryan Ly, Ben Dichter
 ## Install
 
 ```
-pip install git+https://github.com/catalystneuro/buffalo-lab-data-to-nwb.git
+pip install buffalo-lab-data-to-nwb.git
 ```
 
 # Use
