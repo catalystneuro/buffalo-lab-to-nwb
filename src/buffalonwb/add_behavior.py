@@ -53,7 +53,7 @@ def add_behavior(nwbfile, behavior_file, metadata_behavior, t0):
         name=meta_et['spatial_series'][0]['name'],
         data=np.array(behavior_data["nlxeye"]).T,
         reference_frame=meta_et['spatial_series'][0]['reference_frame'],
-        rate=(tt[-1] - tt[0]) / len(tt),
+        rate=len(tt) / (tt[-1] - tt[0]),
         starting_time=tt[0],
         #timestamps=np.array(behavior_data["nlxtme"]) / 1000. - t0,
         conversion=np.nan
